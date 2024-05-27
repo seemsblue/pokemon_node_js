@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>당신만을 위한 공간</title>
+</head>
+<body>
+    <%- include('nav.ejs') %>
+
+    <h2><%= user.nickname %></h2>
+    <div style="width: 100px; height: 100px;">
+        <img src="<%= user.icon %>" alt="User Icon" style="width:100%">
+    </div>
+
+    <div class="option" id="icon">
+        <p>3mb 이하 200*200 이미지까지 업로드 가능합니다</p>
+        <form action="/upload-icon" class="dropzone" id="myDropzone"></form>
+        <button id="uploadButton">업로드하기</button>
+    </div>
+    
+    <script src="https://unpkg.com/dropzone@5/dist/min/dropzone.min.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/dropzone@5/dist/min/dropzone.min.css" type="text/css"/>
+    <script>
+        //스크립트랑 드롭존 불러오는 서순 주의!!!!!!!!
+        Dropzone.options.myDropzone = {
+            url: "/upload-icon",
+            method: 'post',
+            autoProcessQueue: false,
+            maxFiles: 1,
+            maxFilesize: 3,  //MB
+            acceptedFiles: 'image/*',
+            thumbnailHeight: 200, // Upload icon size
+            thumbnailWidth: 200, // Upload icon size
+            init: function() {
+                var myDropzone = this;
+                document.getElementById("uploadButton").addEventListener("click", function() {
+                    myDropzone.processQueue(); // Manually process the queue
+                });
+                this.on("success", function(file, response) {
+                    location.reload();
+                });
+            }
+        };
+    </script>
+    
+</body>
+</html>

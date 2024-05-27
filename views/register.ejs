@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>반가워요</title>
+</head>
+<body>
+    <%- include('nav.ejs')%>
+
+    <form class="form-box" action="/register" method="POST" >
+        <p><strong><%= msg %></strong></p>
+        <p>이메일 적으세요</p>
+        <input id="email" name="email" type="email" autocomplete="email">
+        <p>2글자 이상 간지나는 이름 적으세요</p>
+        <input id="nickname" name="nickname" placeholder="실시간 중복검사하면 DB가 힘들어함" autocomplete="username">
+        <p>암호화 해서 저장하긴 하는데 못믿겠으면 구글추천 비번쓰세요</p>
+        <input id="password" name="password" type="password" placeholder="비번적으세요" autocomplete="new-password">
+        <input id="check" type="password" placeholder="비번확인하세요" autocomplete="new-password">
+        <button type="submit">만들기!</button>
+    </form>
+
+    <script>
+        document.querySelector('.form-box').addEventListener('submit', function(event) {
+            //그치만 여기서 백날 검사해봐야 어차피 서버에서 검사할거임
+            let password = document.getElementById('password').value;
+            let check = document.getElementById('check').value;
+            let email = document.getElementById('email').value;
+            let nickname = document.getElementById('nickname').value;
+
+            console.log(email);
+            if (password !== check) {
+                event.preventDefault(); // 폼 제출을 막음
+                alert('비밀번호가 일치안함!!!!!!!!!!!!!!!'); // 경고 메시지 출력
+            }
+            else if(nickname.length<2){
+                event.preventDefault();
+                alert('닉네임이 너무짧아요...');
+            }
+            else if(password.length<4){
+                event.preventDefault();
+                alert('비밀번호가 너무짧아요...');
+            }
+        });
+    </script>
+</body>
+</html>
