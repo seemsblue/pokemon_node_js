@@ -33,6 +33,18 @@ const upload = multer({
   limits: { fileSize: 4 * 1024 * 1024 },
 });
 
+//aws 임시 버킷은 2일마다 버전 변경하고, 지난 버전은 2일마다 삭제하도록 규칙 설정해둠
+const uploadTMP = multer({
+  storage: multerS3({
+    s3: s3,
+    bucket: 'tmpraccon',
+    key: function (req, file, cb) {
+      cb(null, Date.now().toString());
+    }
+  }),
+  limits: { fileSize: 4 * 1024 * 1024 },
+});
+
 app.use(methodOverride('_method'));
 app.use(express.static(__dirname + '/public'));
 app.set('view engine', 'ejs');
@@ -197,7 +209,8 @@ app.post('/register',async (req,res)=>{
   await db.collection('user').insertOne({
       email:email,
       nickname:nickname,
-      password:password
+      password:password,
+      rank:'normal',
   })
 
   res.redirect('/login');
@@ -212,22 +225,93 @@ app.get('/write',checkAuth,(req,res)=>{
   res.render('write.ejs');
 })
 
+// 이미지 이동 함수
+const moveImageToPermanentBucket = async (tmpImageUrl) => {
+  const tmpBucket = 'tmpraccoon';
+  const permBucket = 'raccoonspring1';
+
+  const imageName = tmpImageUrl.split('/').pop();
+
+  try {
+      // 임시 버킷에서 실제 버킷으로 복사
+      await s3.copyObject({
+          Bucket: permBucket,
+          CopySource: `${tmpBucket}/${imageName}`,
+          Key: imageName
+      }).promise();
+
+      // 임시 버킷에서 이미지 삭제
+      await s3.deleteObject({
+          Bucket: tmpBucket,
+          Key: imageName
+      }).promise();
+
+      return `https://${permBucket}.s3.amazonaws.com/${imageName}`;
+  } catch (err) {
+      console.error('Error moving image:', err);
+      throw err;
+  }
+};
+
 app.post('/write',checkAuth,async(req,res)=>{
+  let category = req.body.category;
   let content = req.body.editorContent;
   let title = req.body.title;
+
+  let categoryDefine = ['general','q']; //유저가 작성 가능한 카테고리에 글 작성 요청을 보냈는지 검사
+  if(req.user.rank=='admin'){ //관리자일 경우 공지사항 카테고리에 접근권한 부여
+    categoryDefine.push('announcement')
+  }
+  if(!categoryDefine.includes(category)){ //작성 불가능한 위치로 요청보냄(post 자체를 위조했으므로 악성 유저일 확률 높음 나중에 처리)
+    req.redirect('/');
+    return;
+  }
+
   let post = {
     time: await new Date(),
     user:req.user._id,
     nickname:req.user.nickname,
     title:title,
     content:content,
+    category:category,
   }
   await db.collection('general forum').insertOne(post);
   console.log(post);
+  res.redirect('/list/1');
 })
 
-app.get('/list',(req,res)=>{
+//리스트 페이지 구현
+/*
+  0.클라이언트는 /list?page=1 과 같은 형식으로 리스트 페이지에 접속한다.
+  0 ver2. /list/:page 같이 파라미터로 받는다 << 채택
 
+  1.mongo 데이터를 array로 불러와서 n개 단위로 불러오고 페이지 만큼 스킵한다.
+  2.다음/이전 페이지 버튼을 활성화 할지에 대한 데이터도 전송한다(가능하면 5페이지 단위 구성도 생각해서)
+  
+  + 그냥 전체를 클라이언트에 전달하고 렌더링 시키게 하려면 db에서 제목이랑 글쓴이 정도만 추출해서 전달하면 좋을듯
+  + 스크롤 내리면 계속 늘어나는 리스트 디자인은 그냥 리스트 통째로 다 넘겨주고 클라이언트에서 하나씩 렌더 하면 될 거 같음
+*/
+app.get(['/list', '/list/:page'],async(req,res)=>{
+  const page = req.params.page || '1';
+  const cut = 2;  //몇개씩 보여줄 것인지?
+  if(Number(page)<1){
+    res.redirect('/list/1')
+    console.log('잘못된 페이지')
+    return;
+  }
+
+  // 전체 문서 개수 계산
+  const totalCount = await db.collection('general forum').countDocuments();
+  const totalPages = Math.ceil(totalCount / cut);
+
+  let result = await db.collection('general forum').find().skip((page-1)*cut).limit(cut).toArray(); //전체 찾고, 페이지만큼 스킵하고, 개수 끊어서 할당
+  let next = (totalPages-page);
+
+  let pagination ={next:next,now:Number(page),total:totalCount};  //페이지네이션에 필요할 것 같은 정보들 다 넣는곳
+
+  console.log(page);
+  
+  res.render('list.ejs',{posts:result,pagination:pagination})
 })
 
 
@@ -276,4 +360,31 @@ app.post('/upload-icon',checkAuth,async(req,res)=>{
   catch(e){
     console.log('지우다가 에러난듯'+e);
   }
+})
+
+//기능 정리
+//아이콘 구현한거랑 비슷한데, 
+/**
+ * aws 임시 버킷은 2일마다 버전 변경하고, 지난 버전은 2일마다 삭제하도록 규칙 설정해둠
+ * 
+ * 1. 에디터에서 이미지를 올리면 이 post api에서 받아서 s3에 업로드하고 이미지 주소로 바꿔서 json으로 다시 클라이언트에 전송
+ * 2. 클라이언트는 그 주소 받아서 html에 렌더링하면 미리보기 가능
+ * 3. 글 발행할 때는 그 주소로 img src ="~ "  태그 만들어서 그대로 저장하면 됨
+ * 3.1 근데 사실 1번에서 올릴때 임시저장소에 올리는거라
+ * 4. 임시저장소에 있던거 본 저장소로 옮기고 이미지 주소에 버킷부분도 수정
+ * 
+ */
+app.post('/upload-image', uploadTMP.single('image'), (req, res) => {
+  if (req.file && req.file.location) {
+      res.json({ url: req.file.location });
+  } else {
+      res.status(400).send('이미지 업로드 실패');
+  }
+});
+
+app.get('/detail/:id',async(req,res)=>{
+  let result = await db.collection('general forum').findOne({_id : new ObjectId(req.params.id)}); 
+  console.log(result);
+  let comments = [];
+  res.render('detail.ejs',{post:result,comment:comments})
 })

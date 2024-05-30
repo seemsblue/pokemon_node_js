@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>당신만을 위한 공간</title>
+    <link href="/css/main.css" rel="stylesheet">
 </head>
 <body>
     <%- include('nav.ejs') %>
@@ -13,10 +14,21 @@
         <img src="<%= user.icon %>" alt="User Icon" style="width:100%">
     </div>
 
+    <div class="select">
+        <button>아이콘 변경</button>
+        <button>닉네임 변경</button>
+        <button>탈퇴</button>
+    </div>
     <div class="option" id="icon">
         <p>3mb 이하 200*200 이미지까지 업로드 가능합니다</p>
         <form action="/upload-icon" class="dropzone" id="myDropzone"></form>
         <button id="uploadButton">업로드하기</button>
+    </div>
+    <div class="option hidden" id="nickname">
+        <h3>닉네임 변경</h3>
+    </div>
+    <div class="option hidden" id="bye">
+        <h3>탈퇴</h3>
     </div>
     
     <script src="https://unpkg.com/dropzone@5/dist/min/dropzone.min.js"></script>
@@ -44,5 +56,26 @@
         };
     </script>
     
+    <script>
+        let select = document.querySelector('.select');
+        select.querySelectorAll('button')[0].addEventListener('click',()=>{
+            document.querySelectorAll('.option').forEach(e=>{
+                e.classList.add('hidden');
+            }) 
+            document.getElementById('icon').classList.remove('hidden');
+        });
+        select.querySelectorAll('button')[1].addEventListener('click',()=>{
+            document.querySelectorAll('.option').forEach(e=>{
+                e.classList.add('hidden');
+            }) 
+            document.getElementById('nickname').classList.remove('hidden');
+        });
+        select.querySelectorAll('button')[2].addEventListener('click',()=>{
+            document.querySelectorAll('.option').forEach(e=>{
+                e.classList.add('hidden');
+            }) 
+            document.getElementById('bye').classList.remove('hidden');
+        });
+    </script>
 </body>
 </html>
