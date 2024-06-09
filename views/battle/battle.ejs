@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= session.code%>번 방</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+</head>
+<body>
+    <header>
+        <h1><%= session.title%></h1>
+        <span><%= session.code%></span>
+        <div class="row" style="height: 200px;">
+            <div id="me" class="col-6 left">
+                <div class="row">
+                </div>
+            </div>
+            <div id="op" class="col-6 right">
+                <div class="row">
+                    <h1>상대 기다리는중...</h1>
+                </div>
+            </div>
+        </div>
+    </header>
+    
+    <div class="chat">
+        <div class="msg-box" style="overflow:scroll; height:300px;">
+
+        </div>
+        <div class="input-group mb-3">
+            <input type="text" class="form-control" placeholder="도발하기" aria-label="Recipient's username" aria-describedby="button-addon2" minlength="1" maxlength="21">
+            <button class="btn btn-outline-secondary" type="button" id="button-addon2">Button</button>
+        </div>
+    </div>
+
+    
+    <script src="https://cdn.jsdelivr.net/npm/socket.io@4.7.2/client-dist/socket.io.min.js"></script>
+
+    <script>
+        const socket = io();
+        socket.emit('ask-join','<%= JSON.stringify(session.code) %>')   //방에 들어오면 코드로 서버에 룸 접속 요청
+
+        //상단 프로필 출력 코드(홈)
+        if('<%=side%>'=='home'){ //내가 홈이면
+            document.querySelector('#me .row').innerHTML=`<div class="col-3"><img src="<%= home.icon %>" alt="User Icon" style="width:100%"></div><div class="col-9"><%=home.nickname%></div>`;
+            socket.emit('select-side','home');
+        }
+        else{
+            document.querySelector('#op .row').innerHTML =`<div class="col-3"><img src="<%= home.icon %>" alt="User Icon" style="width:100%"></div><div class="col-9"><%=home.nickname%></div>`
+            socket.emit('select-side','away');
+        }
+        //상단 프로필 출력 코드(어웨이)
+        socket.on('away-update',(away)=>{
+            if('<%=side%>'=='away'){ //내가 어웨이면
+                console.log('<%=side%>');
+                document.querySelector('#me .row').innerHTML=`<div class="col-3"><img src="${away.icon}" alt="User Icon" style="width:100%"></div><div class="col-9">${away.nickname}</div>`
+            }
+            else{
+                document.querySelector('#op .row').innerHTML=`<div class="col-3"><img src="${away.icon}" alt="User Icon" style="width:100%"></div><div class="col-9">${away.nickname}</div>`
+            }
+        })
+        if('<%=side%>'=='away'){    //내 정보를 서버에 보낸다
+            socket.emit('away-join',{room:'<%= JSON.stringify(session.code) %>'});
+        }
+
+        document.querySelector('.chat div button').addEventListener('click',(e)=>{  //유저가 채팅을 보내면
+            let msg = document.querySelector('.chat div input').value;
+            socket.emit('chat',{msg:msg,room:'<%= JSON.stringify(session.code) %>',side:'<%=side%>'})    //해당 방 룸의 코드로 chat 요청을 보낸다
+            document.querySelector('.chat div input').value='';
+        })
+        
+        socket.on('chat-cast',(data)=>{
+            if(data.side=='<%=side%>'){ //내 side와 메시지의 side가 같다면 왼쪽정렬
+                document.querySelector('.msg-box').insertAdjacentHTML('beforeend', `<div class="chat-box"><span>${data.msg}</span></div>`)
+            }
+            else{
+                document.querySelector('.msg-box').insertAdjacentHTML('beforeend', `<div class="chat-box text-end"><span>${data.msg}</span></div>`)
+            }
+        })
+        
+        //상대로부터 결과 통보받았을 때
+        socket.on('endGame',(data)=>{
+            alert(data.msg);
+            socket.emit('endGame',{result:data.result});
+        })
+    </script>
+</body>
+</html>

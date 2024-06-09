@@ -7,12 +7,32 @@ require('dotenv').config();
 const { S3Client, DeleteObjectCommand  } = require('@aws-sdk/client-s3');
 const multer = require('multer');
 const multerS3 = require('multer-s3');
-const { createServer } = require('http');
-const { Server } = require('socket.io');
+
 const session = require('express-session');
 const passport = require('passport');
 const LocalStrategy = require('passport-local');
 const app = express();
+
+//실시간 통신 소켓 관련
+const { createServer } = require('http');
+const { Server } = require('socket.io');
+const server = createServer(app);
+const io = new Server(server);
+  //이 모듈을 사용하는 라우트 불러오기 위에 먼저 적어야 함 (상호참조는 되는데 이런거 주의)
+
+//const url = process.env.DB_URL;
+let connectDB = require('./database.js')
+let db;
+
+connectDB.then(client => {
+  console.log('DB 연결 성공');
+  db = client.db('pokemon');
+  server.listen(8080, () => {
+    console.log('http://localhost:8080 에서 실행 중');
+  });
+}).catch(err => {
+  console.log(err);
+});
 
 const s3 = new S3Client({
   region: 'ap-northeast-2',
@@ -92,46 +112,20 @@ passport.deserializeUser(async (user, done) => {
   });
 });
 
-const httpServer = createServer(app);
-const io = new Server(httpServer);
+
 
 io.engine.use(sessionMiddleware);
 
-const url = process.env.DB_URL;
-let db;
 
-new MongoClient(url).connect().then(client => {
-  console.log('DB 연결 성공');
-  db = client.db('pokemon');
-  httpServer.listen(8080, () => {
-    console.log('http://localhost:8080 에서 실행 중');
-  });
-}).catch(err => {
-  console.log(err);
-});
 
 
 // 세팅 끝
 
-//미들웨어 적어놓는 곳
-
-io.on('connection', (socket) => {
-  socket.on('ask-join', (data) => {
-    console.log(socket.request.session);
-    // socket.join(data);
-  });
-});
-
-app.use('/list', (req, res, next) => {
-  console.log(new Date());
-  next();
-});
-
+//미들웨어 => 사실 미들웨어도 middlewares.js 파일로 분리하는 편이 관리가 편하다고 함 시간나면 그렇게 하기
 function checkAuth(req,res,next){ //로그인이 필요한 곳에 가져다 쓰는 미들웨어 / 로그아웃 상태일 시 /login으로 redirect
   if(req.isAuthenticated()) {
     return next();
   }
-
   res.redirect('/login');
 }
 
@@ -142,6 +136,18 @@ function checkGuest(req,res,next){ //로그인 상태일 시 '/'으로 redirect
 
   next();
 }
+module.exports = { checkAuth, checkGuest, io };   //파일당 한번만
+
+//라우트
+app.use('/', require('./routes/forum.js'))
+app.use('/', require('./routes/battle.js'))
+
+
+app.use('/list', (req, res, next) => {
+  console.log(new Date());
+  next();
+});
+
 
 //미들웨어 끝
 
@@ -211,6 +217,8 @@ app.post('/register',async (req,res)=>{
       nickname:nickname,
       password:password,
       rank:'normal',
+      icon:'/image/램프라.jpg',
+      point:10,
   })
 
   res.redirect('/login');
@@ -304,9 +312,11 @@ app.get(['/list', '/list/:page'],async(req,res)=>{
   const totalCount = await db.collection('general forum').countDocuments();
   const totalPages = Math.ceil(totalCount / cut);
 
-  let result = await db.collection('general forum').find().skip((page-1)*cut).limit(cut).toArray(); //전체 찾고, 페이지만큼 스킵하고, 개수 끊어서 할당
+  let result = await db.collection('general forum').find({},{title:1,category:1,nickname:1,content: 0}).skip((page-1)*cut).limit(cut).toArray(); //전체 찾고, 페이지만큼 스킵하고, 개수 끊어서 할당
+  console.log(result);  //왜 아직도 content 필드까지 가져오는지는 연구 필요
+  
   let next = (totalPages-page);
-
+  
   let pagination ={next:next,now:Number(page),total:totalCount};  //페이지네이션에 필요할 것 같은 정보들 다 넣는곳
 
   console.log(page);
@@ -388,3 +398,5 @@ app.get('/detail/:id',async(req,res)=>{
   let comments = [];
   res.render('detail.ejs',{post:result,comment:comments})
 })
+
+
