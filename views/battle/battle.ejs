@@ -21,6 +21,10 @@
                 </div>
             </div>
         </div>
+        <div id="timer">
+            <span>5</span>
+        </div>
+        <button id="askStartBtn" class="btn btn-warning">시작하기</button>
     </header>
     
     <div class="chat">
@@ -38,43 +42,93 @@
 
     <script>
         const socket = io();
-        socket.emit('ask-join','<%= JSON.stringify(session.code) %>')   //방에 들어오면 코드로 서버에 룸 접속 요청
+        const timerSpan = document.querySelector('#timer span');
+        const askStartBtn = document.getElementById('askStartBtn');
+        function askStartHandler() {
+            socket.emit('askStart');
+        } 
 
-        //상단 프로필 출력 코드(홈)
+        let side;
+        let gameDeck=[];
+
+        socket.emit('ask-join','<%= JSON.stringify(session.code) %>')   //방에 들어오면 코드로 서버에 룸 접속 요청
+        if('<%=side%>'=='away'){    //내 정보를 서버에 보낸다
+            socket.emit('away-join',{room:'<%= JSON.stringify(session.code) %>'});
+        }
+        //상단 프로필 출력(홈)
         if('<%=side%>'=='home'){ //내가 홈이면
+            side='home';
             document.querySelector('#me .row').innerHTML=`<div class="col-3"><img src="<%= home.icon %>" alt="User Icon" style="width:100%"></div><div class="col-9"><%=home.nickname%></div>`;
             socket.emit('select-side','home');
         }
         else{
+            side='away';
             document.querySelector('#op .row').innerHTML =`<div class="col-3"><img src="<%= home.icon %>" alt="User Icon" style="width:100%"></div><div class="col-9"><%=home.nickname%></div>`
             socket.emit('select-side','away');
         }
-        //상단 프로필 출력 코드(어웨이)
+        //어웨이 유저 접속 & 상단 프로필 출력(어웨이)
         socket.on('away-update',(away)=>{
             if('<%=side%>'=='away'){ //내가 어웨이면
                 console.log('<%=side%>');
                 document.querySelector('#me .row').innerHTML=`<div class="col-3"><img src="${away.icon}" alt="User Icon" style="width:100%"></div><div class="col-9">${away.nickname}</div>`
             }
-            else{
+            else{   //내가 홈이면
                 document.querySelector('#op .row').innerHTML=`<div class="col-3"><img src="${away.icon}" alt="User Icon" style="width:100%"></div><div class="col-9">${away.nickname}</div>`
+                askStartBtn.classList.remove('hidden');         //이제 home유저는 버튼을 클릭해 시작요청을 보낼 수 있음
+                askStartBtn.addEventListener('click', askStartHandler);
             }
         })
-        if('<%=side%>'=='away'){    //내 정보를 서버에 보낸다
-            socket.emit('away-join',{room:'<%= JSON.stringify(session.code) %>'});
-        }
 
-        document.querySelector('.chat div button').addEventListener('click',(e)=>{  //유저가 채팅을 보내면
+        //askStart 수신(게임 시작 요청)
+        let countdownInterval;
+        socket.on('askStart',()=>{
+            let counter = 6;
+            timerSpan.textContent = counter;
+
+            countdownInterval = setInterval(() => {
+                counter -= 1;
+                if (counter <= -1) {
+                    clearInterval(countdownInterval);
+                    socket.emit('startGame');
+                    timerSpan.textContent = '게임중';
+                } else {
+                    timerSpan.textContent = counter;
+                }
+            }, 1000); 
+        });
+
+        //시작 전에 상대 나감
+        socket.on('leave', () => {
+            console.log('leave수신');   //상대가 떠나니까 엄청 많이 수신됨 원인이 뭘까
+            socket.emit('leave');
+            clearInterval(countdownInterval);
+            timerSpan.textContent = '';
+            if(side=='home'){   //홈일때(방 유지됨)
+                askStartBtn.classList.add('hidden'); //시작버튼 비활성화
+                askStartBtn.removeEventListener('click', askStartHandler);
+            }
+            else{   //어웨이일때(방 터짐)
+                window.location.href = '/match';
+            }
+        });
+
+        socket.on('setDeck',(data)=>{   //게임덱 수신
+            gameDeck=data.gameDeck;
+            console.log(gameDeck);
+        })
+
+        //채팅 구현
+        document.querySelector('.chat div button').addEventListener('click',(e)=>{  
             let msg = document.querySelector('.chat div input').value;
             socket.emit('chat',{msg:msg,room:'<%= JSON.stringify(session.code) %>',side:'<%=side%>'})    //해당 방 룸의 코드로 chat 요청을 보낸다
             document.querySelector('.chat div input').value='';
         })
-        
         socket.on('chat-cast',(data)=>{
             if(data.side=='<%=side%>'){ //내 side와 메시지의 side가 같다면 왼쪽정렬
                 document.querySelector('.msg-box').insertAdjacentHTML('beforeend', `<div class="chat-box"><span>${data.msg}</span></div>`)
             }
             else{
-                document.querySelector('.msg-box').insertAdjacentHTML('beforeend', `<div class="chat-box text-end"><span>${data.msg}</span></div>`)
+                document.querySelector('.msg-box').insertAdjacentHTML('beforeend', `<div class="chat-box text-end"><span>${data.msg}</span></div>`) 
             }
         })
         

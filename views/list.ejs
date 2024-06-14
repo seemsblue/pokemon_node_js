@@ -4,13 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document</title>
+    <link href="/css/main.css" rel="stylesheet">
+    <link href="/bootstrap/bootstrap.min.css" rel="stylesheet">
 </head>
 <body>
 
   <%- include('nav.ejs')%>
 
-  <input class="search">
-  <button class="search-send">search</button>
+  <form class="d-flex ms-3 mt-3" style="width: 50%;">
+    <input class="form-control me-2 seach" type="search" placeholder="제목" aria-label="Search">
+    <button class="btn btn-outline-success search-send" type="submit" style="width: 10%;">검색</button>
+  </form>
   <script>
     document.querySelector(".search-send").addEventListener('click',function(){
       let val = document.querySelector('.search').value
@@ -19,37 +23,42 @@
     })
   </script>
 
-  <div class="white-bg">
-    <%for(let i=0;i < posts.length;i++){%>
-    <div class="list-box">
-      <h4>
-        <a href="/detail/<%=posts[i]._id%>"><%= JSON.stringify(posts[i].title) %></a>
-        <a href="/edit/<%=posts[i]._id%>">✏️</a>
-        <span class="delete" data-id="<%=posts[i]._id%>">tt</span>
-      </h4>
-      <p><%= (posts[i].category)%></p>
+  <div class="d-flex justify-content-center mt-5">
+    <div class="white-bg" style="width: 90%;">
+      <%for(let i=0;i < posts.length;i++){%>
+      <div class="list-box mt-1">
+        <h4 class="mt-1">
+          <a href="/detail/<%=posts[i]._id%>"><%= JSON.stringify(posts[i].title) %></a>
+          <a href="/edit/<%=posts[i]._id%>">✏️</a>
+          <span class="delete" data-id="<%=posts[i]._id%>">tt</span>
+        </h4>
+        <p><%= (posts[i].category)%></p>
+      </div>
+    <%}%>
     </div>
-  <%}%>
+  </div>
+  
+
+  <div class="d-flex justify-content-center mt-5">
+    <div class="btn-group me-2" role="group" aria-label="Second group" style="width: 170px;">
+      <%if(pagination.now>3){%>
+        <button class="page-btn btn btn-outline-info" onclick="window.location.href='/list/<%= pagination.now - 3 %>'" type="button"><</button>
+      <%}%>
+      <%for(let i=2;i>0;i--){%>
+        <%if(pagination.now-i<=0)continue;%>
+          <button class="page-btn btn btn-outline-info" onclick="window.location.href='/list/<%= pagination.now - (i) %>'" type="button"><%= pagination.now - (i) %></button>
+      <%}%>
+        <button class="page-btn btn btn-outline-info disabled" type="button"><%= pagination.now%></button>
+      <%for(let i=0;i < (pagination.next) ;i++){%>
+        <%if(i>=2)break;%>
+        <button class="page-btn btn btn-outline-info" onclick="window.location.href='/list/<%= pagination.now + (i + 1) %>'" type="button"><%= pagination.now + (i + 1) %></button>
+      <%}%>
+      <%if(pagination.next>2){%>
+        <button class="page-btn btn btn-outline-info" onclick="window.location.href='/list/<%= pagination.now + 3 %>'" type="button">></button>
+      <%}%>
+    </div>
   </div>
 
-  <div class="pagination">
-    
-    <%if(pagination.now>3){%>
-      <button class="page-btn" onclick="window.location.href='/list/<%= pagination.now - 3 %>'"><</button>
-    <%}%>
-    <%for(let i=2;i>0;i--){%>
-      <%if(pagination.now-i<=0)continue;%>
-        <button class="page-btn" onclick="window.location.href='/list/<%= pagination.now - (i) %>'"><%= pagination.now - (i) %></button>
-    <%}%>
-    <button class="page-btn"><%= pagination.now%></button>
-    <%for(let i=0;i < (pagination.next) ;i++){%>
-      <%if(i>=2)break;%>
-      <button class="page-btn" onclick="window.location.href='/list/<%= pagination.now + (i + 1) %>'"><%= pagination.now + (i + 1) %></button>
-    <%}%>
-    <%if(pagination.next>2){%>
-      <button class="page-btn" onclick="window.location.href='/list/<%= pagination.now + 3 %>'">></button>
-    <%}%>
-  </div>
   <script>
     for(let i =0;i<'<%=posts.length%>';i++){
     document.querySelectorAll('.delete')[i].addEventListener('click',function(e){
@@ -63,5 +72,6 @@
     })
   }
   </script>
+  <script src="/bootstrap/bootstrap.bundle.min.js"></script>
 </body>
 </html>

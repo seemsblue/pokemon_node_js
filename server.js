@@ -1,4 +1,5 @@
 const express = require('express');
+const path = require('path');
 const { MongoClient, ObjectId } = require('mongodb');
 const methodOverride = require('method-override');
 const bcrypt = require('bcrypt');
@@ -14,25 +15,20 @@ const LocalStrategy = require('passport-local');
 const app = express();
 
 //실시간 통신 소켓 관련
-const { createServer } = require('http');
+const { createServer } = require('http'); //이 모듈을 사용하는 라우트 불러오기 위에 먼저 적어야 함 (상호참조는 되는데 이런거 주의)
 const { Server } = require('socket.io');
 const server = createServer(app);
 const io = new Server(server);
-  //이 모듈을 사용하는 라우트 불러오기 위에 먼저 적어야 함 (상호참조는 되는데 이런거 주의)
+
+//리액트와 nodejs ajax 요청 관련
+var cors = require('cors');
+app.use(cors());
 
 //const url = process.env.DB_URL;
 let connectDB = require('./database.js')
 let db;
 
-connectDB.then(client => {
-  console.log('DB 연결 성공');
-  db = client.db('pokemon');
-  server.listen(8080, () => {
-    console.log('http://localhost:8080 에서 실행 중');
-  });
-}).catch(err => {
-  console.log(err);
-});
+
 
 const s3 = new S3Client({
   region: 'ap-northeast-2',
@@ -67,6 +63,7 @@ const uploadTMP = multer({
 
 app.use(methodOverride('_method'));
 app.use(express.static(__dirname + '/public'));
+app.use(express.static(path.join(__dirname, 'react-app/build'))); //리액트 파일주소
 app.set('view engine', 'ejs');
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -136,7 +133,7 @@ function checkGuest(req,res,next){ //로그인 상태일 시 '/'으로 redirect
 
   next();
 }
-module.exports = { checkAuth, checkGuest, io };   //파일당 한번만
+module.exports = { checkAuth, checkGuest, io ,};   //exports는 파일당 한번만
 
 //라우트
 app.use('/', require('./routes/forum.js'))
@@ -152,6 +149,10 @@ app.use('/list', (req, res, next) => {
 //미들웨어 끝
 
 app.get('/',(request,response)=>{
+  console.log(request.user)
+  response.render('home.ejs')
+})
+app.get('/home',(request,response)=>{
   console.log(request.user)
   response.render('home.ejs')
 })
@@ -399,4 +400,17 @@ app.get('/detail/:id',async(req,res)=>{
   res.render('detail.ejs',{post:result,comment:comments})
 })
 
+app.get('*', function (req, res) {  //리액트 라우터
+  res.sendFile(path.join(__dirname, '/react-app/build/index.html'));
+});
 
+
+connectDB.then(client => {  //시작!
+  console.log('DB 연결 성공');
+  db = client.db('pokemon');
+  server.listen(8080, () => {
+    console.log('http://localhost:8080 에서 실행 중');
+  });
+}).catch(err => {
+  console.log(err);
+});
