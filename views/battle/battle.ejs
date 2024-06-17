@@ -26,7 +26,12 @@
         </div>
         <button id="askStartBtn" class="btn btn-warning">시작하기</button>
     </header>
-    
+
+    <div class="row" id="game-screen" style="height: 600px;">
+        <div class="col-6" id="me"></div>
+        <div class="col-6" id="op"></div>
+    </div>
+
     <div class="chat">
         <div class="msg-box" style="overflow:scroll; height:300px;">
 
@@ -41,6 +46,54 @@
     <script src="https://cdn.jsdelivr.net/npm/socket.io@4.7.2/client-dist/socket.io.min.js"></script>
 
     <script>
+        async function getPokemonInfoById(id){   
+            //서버에서는 도감번호만 보내주고, 이 작업은 클라이언트 사이드에서 해야 할지는 고민
+            //서버에서 게임을 할때마다 이미지까지 다 fetch하면 너무 오래 걸리고, 클라이언트한테 종족값까지 맡기면 위조 위험이 생기는데
+            //1. 사실 해결방법은 용량이 적어서 그냥 데이터베이스에 보관하면 되는데 그럼 api 써보는 의미가 없어짐
+            //2. 타협해서 포켓몬 도감번호만 서버와 유저가 공유하고, 필요한 정보는 각자 불러오는데 그러면 나중에 위조검사 확장할수는 있음
+            
+            // 병렬로 fetch 요청
+            let [response, speciesResponse, formResponse] = await Promise.all([
+                fetch(`https://pokeapi.co/api/v2/pokemon/${id}`),
+                fetch(`https://pokeapi.co/api/v2/pokemon-species/${id}`),
+                fetch(`https://pokeapi.co/api/v2/pokemon-form/${id}`)
+            ]);
+            // 각 응답을 JSON으로 변환
+            let data = await response.json();
+            let speciesData = await speciesResponse.json();
+            let formData = await formResponse.json();
+        
+            let frontImg = formData.sprites.front_default;
+            
+            let jpSpecies = speciesData.names.find(i => i.language.name === "ja-Hrkt");
+            let name = jpSpecies.name;
+            try{
+                let krSpecies = speciesData.names.find(i => i.language.name === "ko");
+                name = krSpecies.name;
+            }catch(e){
+                console.log('포켓몬 한글이름 없는듯 '+e);
+            }
+        
+            let pokemon ={};
+            pokemon.name = name;    //이름(한글 우선, 없으면 일본어)
+            pokemon.id = id;    //도감코드
+            pokemon.types = data.types.map(typeInfo => typeInfo.type.name); //타입
+            pokemon.frontImg = frontImg;
+            pokemon.stats = data.stats;
+            let totalStat = 0;
+            data.stats.map(i=> totalStat+=i.base_stat); //기타 등등 스탯 들어가있는거
+            pokemon.totalStat = totalStat;  //최종 종족값
+            //console.log(pokemon);
+            return pokemon;
+        }
+
+        /**
+        
+        */
+        function makeImgTag(url,id){
+            return`<img src=${url} id=${id} style="width:100%">`
+        }
+
         const socket = io();
         const timerSpan = document.querySelector('#timer span');
         const askStartBtn = document.getElementById('askStartBtn');
@@ -49,7 +102,8 @@
         } 
 
         let side;
-        let gameDeck=[];
+        let myDeck=[];
+        let opDeck=[];
 
         socket.emit('ask-join','<%= JSON.stringify(session.code) %>')   //방에 들어오면 코드로 서버에 룸 접속 요청
         if('<%=side%>'=='away'){    //내 정보를 서버에 보낸다
@@ -97,7 +151,7 @@
             }, 1000); 
         });
 
-        //시작 전에 상대 나감
+        //시작 전에 상대 나갔을 때
         socket.on('leave', () => {
             console.log('leave수신');   //상대가 떠나니까 엄청 많이 수신됨 원인이 뭘까
             socket.emit('leave');
@@ -112,9 +166,40 @@
             }
         });
 
-        socket.on('setDeck',(data)=>{   //게임덱 수신
-            gameDeck=data.gameDeck;
-            console.log(gameDeck);
+        //덱 수신
+        socket.on('setDeck',async(data)=>{
+            console.log(data.homeDeck+'/'+data.awayDeck);
+            let myCodes = [];
+            let opCodes = [];
+
+            if(side=='home'){
+                myCodes = data.homeDeck;
+                opCodes = data.awayDeck;
+            }
+            else{
+                myCodes = data.awayDeck;
+                opCodes = data.homeDeck;
+            }
+            myDeck = await Promise.all(myCodes.map(async i => {
+                let pokemon = await getPokemonInfoById(i);
+                return pokemon;
+            }));
+            
+            opDeck = await Promise.all(opCodes.map(async i => {
+                let pokemon = await getPokemonInfoById(i);
+                return pokemon;
+            }));
+            console.log(myDeck);
+            console.log(opDeck);
+
+            await Promise.all(myDeck.map((data,i)=>{    //여기에 버튼기능 추가
+                console.log(makeImgTag(data.frontImg,i));
+                document.querySelector('#game-screen #me').insertAdjacentHTML("beforeend",makeImgTag(data.frontImg,i));
+            }))
+            await Promise.all(opDeck.map((data,i)=>{
+                console.log(makeImgTag(data.frontImg,i));
+                document.querySelector('#game-screen #op').insertAdjacentHTML("",makeImgTag(data.frontImg,i));
+            }))
         })
 
         //채팅 구현

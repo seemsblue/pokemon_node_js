@@ -26,13 +26,14 @@ let db;
  * 1부터 1010 숫자 넣으면 해당 Id의 포켓몬 json 반환
  * @param {number} id 
  */
-async function selectPokemonById(id){   
+async function getPokemonInfoById(id){   
     //서버에서는 도감번호만 보내주고, 이 작업은 클라이언트 사이드에서 해야 할지는 고민
     //서버에서 게임을 할때마다 이미지까지 다 fetch하면 너무 오래 걸리고, 클라이언트한테 종족값까지 맡기면 위조 위험이 생기는데
     //1. 사실 해결방법은 용량이 적어서 그냥 데이터베이스에 보관하면 되는데 그럼 api 써보는 의미가 없어짐
     //2. 타협해서 포켓몬 도감번호만 서버와 유저가 공유하고, 필요한 정보는 각자 불러오는데 그러면 나중에 위조검사 확장할수는 있음
     
     // 병렬로 fetch 요청
+    console.log(id);
     let [response, speciesResponse, formResponse] = await Promise.all([
         fetch(`https://pokeapi.co/api/v2/pokemon/${id}`),
         fetch(`https://pokeapi.co/api/v2/pokemon-species/${id}`),
@@ -41,7 +42,7 @@ async function selectPokemonById(id){
     // 각 응답을 JSON으로 변환
     let data = await response.json();
     let speciesData = await speciesResponse.json();
-    let formData = await formResponse.json();
+    let formData = await formResponse.json();   
 
     let frontImg = formData.sprites.front_default;
     
@@ -151,25 +152,17 @@ router.get('/battle/:code',checkAuth,async(req,res)=>{
 });
 
 io.on('connection', async(socket) => {   //접속 할때마다 유저에게 고유한 소켓 객체가 제공
-    //console.log(socket);
+    const session = socket.request.session;
+    let user = await db.collection('user').findOne({_id: new ObjectId(session.passport.user.id)});  //소켓에 접속한 현재 유저
+    delete user.password;
     socket.roomsJoined = [];
     socket.side='';
     let code='';
     const randomPokemonId = () => Math.floor(Math.random() * 1010) + 1;
-    let gameDeck = [];  //보유중인 포켓몬
-
-    selectPokemonById(randomPokemonId)
-    //console.log(await selectPokemonById(randomNumber));
-
-
-    const session = socket.request.session;
-    
-    let user = await db.collection('user').findOne({_id: new ObjectId(session.passport.user.id)});  //소켓에 접속한 현재 유저
-    delete user.password;
-    //console.log(user);
-    
+    let homeDeck = [];  //보유중인 포켓몬
+    let awayDeck = [];
     let status = 'wait' //wait이면 시작 대기중 play면 게임중, win이면 접속 종료 시 포인트 증가, lose면 포인트 감소
-
+    
     socket.on('ask-join',async(data)=>{
         console.log(data);
         socket.join(data);
@@ -207,14 +200,19 @@ io.on('connection', async(socket) => {   //접속 할때마다 유저에게 고�
         console.log(code+'방에서 askStart');
         io.to(code).emit('askStart');
 
+        for(i=0;i<6;i++){   //홈 플레이어의 포켓몬 6마리의 도감번호를 선정
+            homeDeck.push(randomPokemonId());
+        }
+        for(i=0;i<6;i++){   
+            awayDeck.push(randomPokemonId());
+        }
+
+        console.log(homeDeck);
         startGameTimeout = setTimeout(() => {   //5초 뒤에 startGame 전송/ 도중에 leave요청시 중단
             
             io.to(code).emit('startGame');
             console.log(`${code}방 게임 시작!`);
-            for(i=0;i<6;i++){
-                gameDeck.push(randomPokemonId);
-            }
-            io.to(code).emit('setDeck',{gameDeck:gameDeck});
+            io.to(code).emit('setDeck',{homeDeck:homeDeck, awayDeck:awayDeck});
         }, 7000);
     })
 
