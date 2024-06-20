@@ -189,13 +189,14 @@ io.on('connection', async(socket) => {   //접속 할때마다 유저에게 고�
     })
 
     /**
-     * 게임 시작 논리
+     * 게임 시작
      * 1. away 유저가 들어와서 select-side를 실행한다.
      * 2. away 유저의 소켓에서 game start io.to를 전송한다.
      * 3. home 유저는 start 버튼을 눌러 askStart 요청을 보낸다
      * 4. 약간의 딜레이를 가졌다가, 아무도 나가지 않았다면 start한다
      */
-    let startGameTimeout; 
+    let selectedPokemon = [];  //선택한 포켓몬
+    let startGameTimeout;
     socket.on('askStart',async(data)=>{
         console.log(code+'방에서 askStart');
         io.to(code).emit('askStart');
@@ -213,7 +214,19 @@ io.on('connection', async(socket) => {   //접속 할때마다 유저에게 고�
             io.to(code).emit('startGame');
             console.log(`${code}방 게임 시작!`);
             io.to(code).emit('setDeck',{homeDeck:homeDeck, awayDeck:awayDeck});
+            io.to(code).emit('battlePhase');    
+
+            setTimeout(() => {
+                console.log(`${code}방 배틀 페이즈 시작!`);
+            }, 31000);
         }, 7000);
+    })
+    /**
+     * 포켓몬을 선택함
+     */
+    socket.on('select-pokemon',async(data)=>{
+        selectedPokemon=data;
+        console.log(selectedPokemon);
     })
 
 

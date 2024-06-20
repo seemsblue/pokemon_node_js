@@ -4,13 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><%= session.code%>번 방</title>
+    <link href="/css/battle.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
 </head>
 <body>
     <header>
         <h1><%= session.title%></h1>
         <span><%= session.code%></span>
-        <div class="row" style="height: 200px;">
+        <div class="row" style="height: 100px;">
             <div id="me" class="col-6 left">
                 <div class="row">
                 </div>
@@ -27,14 +28,14 @@
         <button id="askStartBtn" class="btn btn-warning">시작하기</button>
     </header>
 
-    <div class="row" id="game-screen" style="height: 600px;">
-        <div class="col-6" id="me"></div>
-        <div class="col-6" id="op"></div>
+    <div class="row" id="game-screen" style="height: 700px; width:100%">
+        <div class="col-6" id="me" style="height: 100%;"></div>
+        <div class="col-6" id="op" style="height: 100%;"></div>
+        <button></button>
     </div>
 
     <div class="chat">
         <div class="msg-box" style="overflow:scroll; height:300px;">
-
         </div>
         <div class="input-group mb-3">
             <input type="text" class="form-control" placeholder="도발하기" aria-label="Recipient's username" aria-describedby="button-addon2" minlength="1" maxlength="21">
@@ -46,6 +47,18 @@
     <script src="https://cdn.jsdelivr.net/npm/socket.io@4.7.2/client-dist/socket.io.min.js"></script>
 
     <script>
+        const socket = io();
+        const timerSpan = document.querySelector('#timer span');
+        const askStartBtn = document.getElementById('askStartBtn');
+
+        let countdownInterval;
+        let side;
+        let myDeck=[];
+        let opDeck=[];
+        let battleDeck = [];
+
+    
+
         async function getPokemonInfoById(id){   
             //서버에서는 도감번호만 보내주고, 이 작업은 클라이언트 사이드에서 해야 할지는 고민
             //서버에서 게임을 할때마다 이미지까지 다 fetch하면 너무 오래 걸리고, 클라이언트한테 종족값까지 맡기면 위조 위험이 생기는데
@@ -91,20 +104,51 @@
         
         */
         function makeImgTag(url,id){
-            return`<img src=${url} id=${id} style="width:100%">`
+            return`<div id=${id}"><img src=${url} style="height:100%"></div>`
         }
 
-        const socket = io();
-        const timerSpan = document.querySelector('#timer span');
-        const askStartBtn = document.getElementById('askStartBtn');
+        
+        const maxSelection = 2;
+        let selectedCount = 0;
+        /**
+        * 포켓몬 선택 최대 제한을 2개로 제한하는 핸들러
+        */
+        function handleCheckboxChange(event) {
+            if (event.target.checked) {
+                selectedCount++;
+                if (selectedCount > maxSelection) {
+                    event.target.checked = false;
+                    selectedCount--;
+                    alert(`You can select up to ${maxSelection} items only.`);
+                }
+            } else {
+                selectedCount--;
+            }
+        }
+        /**
+        * indices 안에 없는 인덱스의 list 요소는 삭제하고 재할당(선택한 포켓몬만 남김)
+        */
+        function filterListByIndices(list, indices) {   
+            return list.filter((item, index) => indices.includes(index));
+        }
+
+        let selectedItems = [0,1];
+        /**
+        * 포켓몬 선택 체크박스 반영 함수
+        */
+        function submitSelections() {
+            selectedItems = [];
+            document.querySelectorAll('.selection-checkbox:checked').forEach((checkbox, index) => {
+                selectedItems.push(Number(checkbox.getAttribute('data-index')));    //data-index 속성 가져오기
+            });
+            console.log('Selected items:', selectedItems);
+            document.querySelector('#confirm-button').classList.add('hidden');
+        }
+
         function askStartHandler() {
             socket.emit('askStart');
         } 
-
-        let side;
-        let myDeck=[];
-        let opDeck=[];
-
+        
         socket.emit('ask-join','<%= JSON.stringify(session.code) %>')   //방에 들어오면 코드로 서버에 룸 접속 요청
         if('<%=side%>'=='away'){    //내 정보를 서버에 보낸다
             socket.emit('away-join',{room:'<%= JSON.stringify(session.code) %>'});
@@ -134,22 +178,46 @@
         })
 
         //askStart 수신(게임 시작 요청)
-        let countdownInterval;
         socket.on('askStart',()=>{
             let counter = 6;
             timerSpan.textContent = counter;
 
             countdownInterval = setInterval(() => {
                 counter -= 1;
+                console.log('게임 시작까지 :'+counter);
                 if (counter <= -1) {
                     clearInterval(countdownInterval);
                     socket.emit('startGame');
                     timerSpan.textContent = '게임중';
+                    console.log('픽 시작...');
+                } else {
+                    timerSpan.textContent = counter;
+                }
+            }, 1000);
+            
+        });
+
+        socket.on('battlePhase',()=>{
+            let counter = 31;
+            timerSpan.textContent = counter;
+
+            countdownInterval = setInterval(() => {
+                counter -= 1;
+                console.log('픽 종료까지 :'+counter);
+                if (counter <= -1) {
+                    clearInterval(countdownInterval);
+                    socket.emit('startGame');
+                    timerSpan.textContent = '게임중';
+                    battleDeck = selectedItems;
+                    myDeck= filterListByIndices(myDeck, battleDeck);
+                    console.log(myDeck);
+                    socket.emit('select-pokemon',myDeck);    //내 서버소켓에 선택한 포켓몬 리스트 전송
+                    console.log('게임 시작...');
                 } else {
                     timerSpan.textContent = counter;
                 }
             }, 1000); 
-        });
+        })
 
         //시작 전에 상대 나갔을 때
         socket.on('leave', () => {
@@ -166,7 +234,7 @@
             }
         });
 
-        //덱 수신
+        //덱 수신 및 포켓몬 선택창 출력
         socket.on('setDeck',async(data)=>{
             console.log(data.homeDeck+'/'+data.awayDeck);
             let myCodes = [];
@@ -192,13 +260,22 @@
             console.log(myDeck);
             console.log(opDeck);
 
-            await Promise.all(myDeck.map((data,i)=>{    //여기에 버튼기능 추가
-                console.log(makeImgTag(data.frontImg,i));
-                document.querySelector('#game-screen #me').insertAdjacentHTML("beforeend",makeImgTag(data.frontImg,i));
-            }))
+            async function renderDeck() {
+                await Promise.all(myDeck.map((data, i) => {
+                    document.querySelector('#game-screen #me').insertAdjacentHTML("beforeend", `
+                        <div style="height:15%; display: flex; align-items: center;">
+                            ${makeImgTag(data.frontImg, i)}
+                            <input type="checkbox" data-index="${i}" class="selection-checkbox" onchange="handleCheckboxChange(event)">
+                        </div>
+                    `);
+                }));
+                document.querySelector('#game-screen #me').insertAdjacentHTML("beforeend", `
+                    <button id="confirm-button" onclick="submitSelections()">Submit</button>
+                `);
+            }
+            renderDeck();
             await Promise.all(opDeck.map((data,i)=>{
-                console.log(makeImgTag(data.frontImg,i));
-                document.querySelector('#game-screen #op').insertAdjacentHTML("",makeImgTag(data.frontImg,i));
+                document.querySelector('#game-screen #op').insertAdjacentHTML("beforeend",`<div style="height:15%">${makeImgTag(data.frontImg,i)}</div>`);
             }))
         })
 
