@@ -13,7 +13,7 @@
         <span><%= session.code%></span>
         <div class="row" style="height: 100px;">
             <div id="me" class="col-6 left">
-                <div class="row">
+                <div class="row" >
                 </div>
             </div>
             <div id="op" class="col-6 right">
@@ -28,14 +28,20 @@
         <button id="askStartBtn" class="btn btn-warning">시작하기</button>
     </header>
 
-    <div class="row" id="game-screen" style="height: 700px; width:100%">
-        <div class="col-6" id="me" style="height: 100%;"></div>
-        <div class="col-6" id="op" style="height: 100%;"></div>
-        <button></button>
+    <div class="row" id="game-screen" style="height: 900px; width:100%">
+        <div class="col-6 me" id="me" style="height: 70%; position:relative;"><div class="battle-pokemon bot">내포켓몬 예시위치<div class="battle-pokemon-info">상태바위치</div></div></div>
+        <div class="col-6 op" id="op" style="height: 70%; position:relative;"><div class="battle-pokemon top">상대포켓몬 예시위치<div class="battle-pokemon-info">상태바위치</div></div></div>
+        <div id="message-container"></div>
+        <div class="row" id="action-btn-container">
+            <button class="col-6 action-btn">타입공격1</button>
+            <button class="col-6 action-btn">타입공격2</button>
+            <button class="col-6 action-btn">일반공격</button>
+            <button class="col-6 action-btn">교체</button>
+        </div>
     </div>
 
     <div class="chat">
-        <div class="msg-box" style="overflow:scroll; height:300px;">
+        <div class="msg-box" style="overflow:scroll; height:200px;">
         </div>
         <div class="input-group mb-3">
             <input type="text" class="form-control" placeholder="도발하기" aria-label="Recipient's username" aria-describedby="button-addon2" minlength="1" maxlength="21">
@@ -50,15 +56,58 @@
         const socket = io();
         const timerSpan = document.querySelector('#timer span');
         const askStartBtn = document.getElementById('askStartBtn');
+        const myGameScreen = document.querySelector('#game-screen #me');
+        const opGameScreen = document.querySelector('#game-screen #op');
+        const messageGameScreen = document.querySelector('#game-screen #message-container');
+        const btnGameScreen = document.querySelector('#game-screen #action-btn-container');
 
         let countdownInterval;
+        let battleCountdownInterval;
         let side;
+
+        let myReadyFlag = false;
+        let opReadyFlag = false;
+        let areBothPlayersReady = () =>{ //두 플레이어 모두 대기 상태(행동 완료 상태인지 확인)
+            if(opReadyFlag==true&&myReadyFlag==true){
+                return true;
+            }
+            return false;
+        } 
+        let setPlayersNotReady = ()=>{
+            myReadyFlag = false;
+            opReadyFlag = false;
+        }
+
         let myDeck=[];
         let opDeck=[];
         let battleDeck = [];
+        let selectedPokemon = [];  //선택한 포켓몬
+        let opSelectedPokemon = []  //상대가 선택한 포켓몬
+        
 
-    
+        function clearGameScreen(){
+            /*
+            * game-screen 내의 내용물들을 청소
+            */
+            myGameScreen.innerHTML = '';
+            opGameScreen.innerHTML = '';
+            messageGameScreen.innerHTML = '';
+            btnGameScreen.innerHTML = '';
+        }
 
+        function printBattlePokemon(pokemon,side){
+            let screen = side == 'me' ? myGameScreen : opGameScreen;
+            screen.innerHTML = 
+            `<div class="battle-pokemon top">
+                <img src="${pokemon.frontImg}"
+                <div class="battle-pokemon-info">
+                    ㅋㅋ
+                </div>
+            </div>`
+        }
+
+        /** 포케 API에서 포켓몬 호출
+        */
         async function getPokemonInfoById(id){   
             //서버에서는 도감번호만 보내주고, 이 작업은 클라이언트 사이드에서 해야 할지는 고민
             //서버에서 게임을 할때마다 이미지까지 다 fetch하면 너무 오래 걸리고, 클라이언트한테 종족값까지 맡기면 위조 위험이 생기는데
@@ -156,22 +205,22 @@
         //상단 프로필 출력(홈)
         if('<%=side%>'=='home'){ //내가 홈이면
             side='home';
-            document.querySelector('#me .row').innerHTML=`<div class="col-3"><img src="<%= home.icon %>" alt="User Icon" style="width:100%"></div><div class="col-9"><%=home.nickname%></div>`;
+            document.querySelector('#me .row').innerHTML=`<div class="col-3" style="height:100px"><img src="<%= home.icon %>" alt="User Icon" style="height:100%"></div><div class="col-9"><%=home.nickname%></div>`;
             socket.emit('select-side','home');
         }
         else{
             side='away';
-            document.querySelector('#op .row').innerHTML =`<div class="col-3"><img src="<%= home.icon %>" alt="User Icon" style="width:100%"></div><div class="col-9"><%=home.nickname%></div>`
+            document.querySelector('#op .row').innerHTML =`<div class="col-3" style="height:100px"><img src="<%= home.icon %>" alt="User Icon" style="height:100%"></div><div class="col-9"><%=home.nickname%></div>`
             socket.emit('select-side','away');
         }
         //어웨이 유저 접속 & 상단 프로필 출력(어웨이)
         socket.on('away-update',(away)=>{
             if('<%=side%>'=='away'){ //내가 어웨이면
                 console.log('<%=side%>');
-                document.querySelector('#me .row').innerHTML=`<div class="col-3"><img src="${away.icon}" alt="User Icon" style="width:100%"></div><div class="col-9">${away.nickname}</div>`
+                document.querySelector('#me .row').innerHTML=`<div class="col-3" style="height:100px"><img src="${away.icon}" alt="User Icon" style="height:100%"></div><div class="col-9">${away.nickname}</div>`
             }
             else{   //내가 홈이면
-                document.querySelector('#op .row').innerHTML=`<div class="col-3"><img src="${away.icon}" alt="User Icon" style="width:100%"></div><div class="col-9">${away.nickname}</div>`
+                document.querySelector('#op .row').innerHTML=`<div class="col-3" style="height:100px"><img src="${away.icon}" alt="User Icon" style="height:100%"></div><div class="col-9">${away.nickname}</div>`
                 askStartBtn.classList.remove('hidden');         //이제 home유저는 버튼을 클릭해 시작요청을 보낼 수 있음
                 askStartBtn.addEventListener('click', askStartHandler);
             }
@@ -179,6 +228,8 @@
 
         //askStart 수신(게임 시작 요청)
         socket.on('askStart',()=>{
+            clearGameScreen();
+
             let counter = 6;
             timerSpan.textContent = counter;
 
@@ -198,14 +249,14 @@
         });
 
         socket.on('battlePhase',()=>{
-            let counter = 31;
+            let counter = 31;   //픽 제한시간(초)
             timerSpan.textContent = counter;
 
-            countdownInterval = setInterval(() => {
+            battleCountdownInterval = setInterval(() => {
                 counter -= 1;
-                console.log('픽 종료까지 :'+counter);
+                //console.log('픽 종료까지 :'+counter);
                 if (counter <= -1) {
-                    clearInterval(countdownInterval);
+                    clearInterval(battleCountdownInterval);
                     socket.emit('startGame');
                     timerSpan.textContent = '게임중';
                     battleDeck = selectedItems;
@@ -218,21 +269,6 @@
                 }
             }, 1000); 
         })
-
-        //시작 전에 상대 나갔을 때
-        socket.on('leave', () => {
-            console.log('leave수신');   //상대가 떠나니까 엄청 많이 수신됨 원인이 뭘까
-            socket.emit('leave');
-            clearInterval(countdownInterval);
-            timerSpan.textContent = '';
-            if(side=='home'){   //홈일때(방 유지됨)
-                askStartBtn.classList.add('hidden'); //시작버튼 비활성화
-                askStartBtn.removeEventListener('click', askStartHandler);
-            }
-            else{   //어웨이일때(방 터짐)
-                window.location.href = '/match';
-            }
-        });
 
         //덱 수신 및 포켓몬 선택창 출력
         socket.on('setDeck',async(data)=>{
@@ -279,6 +315,35 @@
             }))
         })
 
+        socket.on('select-pokemon',(data)=>{
+            if(data.side == side){
+                selectedPokemon = data.pokemon;
+                myReadyFlag = true;
+            }
+            else{
+                opSelectedPokemon = data.pokemon;
+                opReadyFlag = true;
+            }
+            
+            if(areBothPlayersReady()==true){    //두명 다 선택을 마치고 기다리고 있는 상태라면 배틀 페이즈 시작 요청
+                socket.emit('opSelect',{opPokemon:opSelectedPokemon});
+                setPlayersNotReady();
+                console.log(selectedPokemon+'/'+opSelectedPokemon);
+                clearGameScreen();
+                messageGameScreen.textContent = '게임 시작중...'
+                printBattlePokemon(selectedPokemon[0],'me');
+                printBattlePokemon(opSelectedPokemon[0],'op');
+
+                socket.emit('start-turn');
+            }
+        })
+
+        //턴 행동 선택 페이즈
+        socket.on('start-turn',()=>{
+
+        })
+
+
         //채팅 구현
         document.querySelector('.chat div button').addEventListener('click',(e)=>{  
             let msg = document.querySelector('.chat div input').value;
@@ -299,6 +364,21 @@
             alert(data.msg);
             socket.emit('endGame',{result:data.result});
         })
+
+        //시작 전에 상대 나갔을 때
+        socket.on('leave', () => {
+            console.log('leave수신');   //상대가 떠나니까 엄청 많이 수신됨 원인이 뭘까
+            socket.emit('leave');
+            clearInterval(countdownInterval);
+            timerSpan.textContent = '';
+            if(side=='home'){   //홈일때(방 유지됨)
+                askStartBtn.classList.add('hidden'); //시작버튼 비활성화
+                askStartBtn.removeEventListener('click', askStartHandler);
+            }
+            else{   //어웨이일때(방 터짐)
+                window.location.href = '/match';
+            }
+        });
     </script>
 </body>
 </html>

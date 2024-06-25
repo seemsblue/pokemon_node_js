@@ -45,6 +45,13 @@ async function getPokemonInfoById(id){
     let formData = await formResponse.json();   
 
     let frontImg = formData.sprites.front_default;
+    let backImg;
+    try{
+        backImg = formData.sprites.back_default;
+    }
+    catch{
+        backImg = frontImg; //back은 없는 경우도 있음
+    }
     
     let jpSpecies = speciesData.names.find(i => i.language.name === "ja-Hrkt");
     let name = jpSpecies.name;
@@ -55,16 +62,30 @@ async function getPokemonInfoById(id){
         console.log('포켓몬 한글이름 없는듯 '+e);
     }
 
-
     let pokemon ={};
     pokemon.name = name;    //이름(한글 우선, 없으면 일본어)
     pokemon.id = id;    //도감코드
     pokemon.types = data.types.map(typeInfo => typeInfo.type.name); //타입
     pokemon.frontImg = frontImg;
-    pokemon.stats = data.stats;
+    pokemon.stats = data.stats; // hp atk def satk sdef spd 순
+    pokemon.hp = data.stats[0].base_stat;
+    pokemon.attack = data.stats[1].base_stat;
+    pokemon.defense = data.stats[2].base_stat;
+    pokemon.specialAttack = data.stats[3].base_stat;
+    pokemon.specialDefense = data.stats[4].base_stat;
+    pokemon.speed = data.stats[5].base_stat;
     let totalStat = 0;
     data.stats.map(i=> totalStat+=i.base_stat); //기타 등등 스탯 들어가있는거
     pokemon.totalStat = totalStat;  //최종 종족값
+    //배틀 중 능력치 상태변화값
+    pokemon.battleHp = pokemon.hp;  
+    pokemon.battleAttack = pokemon.attack;
+    pokemon.battleDefense = pokemon.defense;
+    pokemon.battleSpecialAttack = pokemon.specialAttack;
+    pokemon.battleSpecialDefense = pokemon.specialDefense;
+    pokemon.battleSpeed = pokemon.speed;
+
+
     console.log(pokemon);
     return pokemon;
 }
@@ -113,7 +134,7 @@ router.post('/create-room',checkAuth,async(req,res)=>{
         user2:null,
         nick:req.user.nickname,
         //데이터 수명을 정할 때 mongo에서 2가지 방법을 쓸 수 있는데 일단 여기서는 date_time으로부터 10분이 지나면 삭제되게 index 짜둠
-        date_time : new Date(),
+        date_time : new Date(), //세션 유효기간 10분으로 초기화
         code:code,
         title : title,
     });
@@ -151,23 +172,33 @@ router.get('/battle/:code',checkAuth,async(req,res)=>{
     res.render('battle/battle.ejs',{session:session,side:side,home:currentUser});
 });
 
+//  !!소켓 진행 흐름은 그림 참조
 io.on('connection', async(socket) => {   //접속 할때마다 유저에게 고유한 소켓 객체가 제공
     const session = socket.request.session;
     let user = await db.collection('user').findOne({_id: new ObjectId(session.passport.user.id)});  //소켓에 접속한 현재 유저
     delete user.password;
+    const myId = user._id;
     socket.roomsJoined = [];
     socket.side='';
-    let code='';
+    let side;
+    let roomCode='';
     const randomPokemonId = () => Math.floor(Math.random() * 1010) + 1;
     let homeDeck = [];  //보유중인 포켓몬
     let awayDeck = [];
-    let status = 'wait' //wait이면 시작 대기중 play면 게임중, win이면 접속 종료 시 포인트 증가, lose면 포인트 감소
+    //wait이면 시작 대기중 play면 게임중, win이면 접속 종료 시 포인트 증가, lose면 포인트 감소
+    let status = 'wait';
+    let action = 'attack1'; //기본값은 1번 타입으로 공격
     
+    //0 - 접속 이벤트
+    /**
+     * 
+     */
     socket.on('ask-join',async(data)=>{
         console.log(data);
-        socket.join(data);
+        socket.join(data);      //배틀 상대와 공유하는 room
+        socket.join(myId);  //이 소켓과 유저간 1:1 통신 전용 room
         socket.roomsJoined.push(data);
-        code=data;
+        roomCode=data;
     })
 
     socket.on('away-join',async(data)=>{    //away 유저가 접속했을 때 away 유저의 정보 전송
@@ -184,10 +215,12 @@ io.on('connection', async(socket) => {   //접속 할때마다 유저에게 고�
         io.to(data.room).emit('chat-cast',{msg:data.msg,side:data.side});
     })
 
-    socket.on('select-side',async(side)=>{
-        socket.side = side;
+    socket.on('select-side',async(data)=>{
+        socket.side = data;
+        side = data;
     })
 
+    //1 - 게임 진행 이벤트
     /**
      * 게임 시작
      * 1. away 유저가 들어와서 select-side를 실행한다.
@@ -196,10 +229,18 @@ io.on('connection', async(socket) => {   //접속 할때마다 유저에게 고�
      * 4. 약간의 딜레이를 가졌다가, 아무도 나가지 않았다면 start한다
      */
     let selectedPokemon = [];  //선택한 포켓몬
+    let opSelectedPokemon = []  //상대가 선택한 포켓몬
+    let myFieldPokemon = 0; //내 필드에 나와있는 포켓몬 인덱스
+    let opFieldPokemon = 0; //상대 필드에 나와있는 포켓몬 인덱스
+
     let startGameTimeout;
     socket.on('askStart',async(data)=>{
-        console.log(code+'방에서 askStart');
-        io.to(code).emit('askStart');
+        console.log(roomCode+'방에서 askStart');
+        io.to(roomCode).emit('askStart');
+        await db.collection('battle_sessions').updateOne(
+        {code: roomCode},
+        { $set: { date_time: new Date() } }
+    );
 
         for(i=0;i<6;i++){   //홈 플레이어의 포켓몬 6마리의 도감번호를 선정
             homeDeck.push(randomPokemonId());
@@ -210,26 +251,61 @@ io.on('connection', async(socket) => {   //접속 할때마다 유저에게 고�
 
         console.log(homeDeck);
         startGameTimeout = setTimeout(() => {   //5초 뒤에 startGame 전송/ 도중에 leave요청시 중단
+            io.to(roomCode).emit('startGame');
+            console.log(`${roomCode}방 게임 시작!`);
+            status='play';
             
-            io.to(code).emit('startGame');
-            console.log(`${code}방 게임 시작!`);
-            io.to(code).emit('setDeck',{homeDeck:homeDeck, awayDeck:awayDeck});
-            io.to(code).emit('battlePhase');    
+            io.to(roomCode).emit('setDeck',{homeDeck:homeDeck, awayDeck:awayDeck});
+            io.to(roomCode).emit('battlePhase');    
 
             setTimeout(() => {
-                console.log(`${code}방 배틀 페이즈 시작!`);
+                console.log(`${roomCode}방 배틀 페이즈 시작!`);
             }, 31000);
         }, 7000);
     })
     /**
-     * 포켓몬을 선택함
+     * 포켓몬 선택 슈신
      */
     socket.on('select-pokemon',async(data)=>{
         selectedPokemon=data;
+        io.to(roomCode).emit('select-pokemon',{side:side,pokemon:selectedPokemon});
         console.log(selectedPokemon);
     })
 
+    //상대 선택 덱 수신
+    socket.on('opSelect',(data)=>{
+        opSelectedPokemon = data.opPokemon;
+    })
 
+    //배틀 턴 시작 수신
+    socket.on('start-turn',(data)=>{
+        io.to(myId).emit('start-turn');
+    })
+
+    //액션 수신 > 액션 전달
+    socket.on('select-action',async(data)=>{
+        action = data.action;
+        io.to(roomCode).emit('select-action',{side:side,action});   //어떤 사이드의 유저가 어떤 액션을 선택했는지 전송
+    })
+
+    //턴 종료 수신 > 결과 계산 후 전달
+    function battleAction(action,side){  //우선도와 스피드에 따라 어느쪽이 먼저 행동할지 모르기 때문에 함수로 분리해서 사용
+        switch(action){
+            case 'surrender' :{};
+            case 'swap' :{};
+            case 'attack1':{};
+            case 'attack2':{};
+            default :;
+        }
+    }
+    socket.on('end-turn',async(data)=>{
+        let opAction = data.opAction;
+        let myAction = data.myAction;
+        //액션 결과 계산
+        io.to(myId).emit('end-turn',{})
+    })
+
+    //2 - 게임 종료 이벤트(연결끊김, 게임 종료 등)
     /**
      * endGame을 수신받는 경우
      * 0. 승부가 나서 각자 endGame 전송
@@ -244,14 +320,14 @@ io.on('connection', async(socket) => {   //접속 할때마다 유저에게 고�
     socket.on('leave',async(data)=>{   //게임 시작 전 상대 유저 떠남
         if(socket.side=='home'){
             try{
-                await db.collection('battle_sessions').deleteOne({code:code});
+                await db.collection('battle_sessions').deleteOne({code:roomCode});
             }
             catch(e){
                 console.log(e+'방 지우다가 에러남 아마 이미 없어진 방일수도');
             }
         }
         clearTimeout(startGameTimeout); // 예약된 startGame 있으면 취소
-        console.log(`${code}방 게임 시작 취소됨...(away 연결 끊김)`);
+        console.log(`${roomCode}방 게임 시작 취소됨...(away 연결 끊김)`);
     })
 
     socket.on('disconnect', async() => {
