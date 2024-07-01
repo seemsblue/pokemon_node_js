@@ -29,14 +29,36 @@
     </header>
 
     <div class="row" id="game-screen" style="height: 900px; width:100%">
-        <div class="col-6 me" id="me" style="height: 70%; position:relative;"><div class="battle-pokemon bot">내포켓몬 예시위치<div class="battle-pokemon-info">상태바위치</div></div></div>
-        <div class="col-6 op" id="op" style="height: 70%; position:relative;"><div class="battle-pokemon top">상대포켓몬 예시위치<div class="battle-pokemon-info">상태바위치</div></div></div>
+
+        <div class="col-6 me" id="me" style="height: 70%; position:relative;">
+            <div class="battle-pokemon bot">내포켓몬 예시위치
+                <div class="battle-pokemon-info">
+                    <div class="name"></div>
+                    <div class="hp-container">
+                        <div class="hp"></div>
+                        <div class="hp-text"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 op" id="op" style="height: 70%; position:relative;">
+            <div class="battle-pokemon top">상대포켓몬 예시위치
+                <div class="battle-pokemon-info">
+                    <div class="name"></div>
+                    <div class="hp-container">
+                        <div class="hp"></div>
+                        <div class="hp-text"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div id="message-container"></div>
-        <div class="row" id="action-btn-container">
-            <button class="col-6 action-btn">타입공격1</button>
-            <button class="col-6 action-btn">타입공격2</button>
-            <button class="col-6 action-btn">일반공격</button>
-            <button class="col-6 action-btn">교체</button>
+        <div class="row hidden" id="action-btn-container">
+            <button class="col-6 action-btn" data-action="typeAttack1">타입공격1</button>
+            <button class="col-6 action-btn" data-action="typeAttack2">타입공격2</button>
+            <button class="col-6 action-btn" data-action="normalAttack">일반공격</button>
+            <button class="col-6 action-btn" data-action="change">교체</button>
         </div>
     </div>
 
@@ -92,7 +114,7 @@
             myGameScreen.innerHTML = '';
             opGameScreen.innerHTML = '';
             messageGameScreen.innerHTML = '';
-            btnGameScreen.innerHTML = '';
+            btnGameScreen.classList.add('hidden');
         }
 
         function printBattlePokemon(pokemon,side){
@@ -101,10 +123,26 @@
             `<div class="battle-pokemon">
                 <img src="${pokemon.frontImg}">
                 <div class="battle-pokemon-info">
-                    ㅋㅋ
+                    <div class="name"></div>
+                    <div class="hp-container">
+                        <div class="hp"></div>
+                        <div class="hp-text"></div>
+                    </div>
                 </div>
             </div>`
         }
+
+        //액션버튼에 이벤트 추가
+        document.querySelectorAll('#action-btn-container .action-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                // div 컨테이너에 hidden 클래스를 추가
+                document.getElementById('action-btn-container').classList.add('hidden');
+        
+                // data-action 속성에 따라 socket.emit 호출
+                const action = this.getAttribute('data-action');    //버튼에 달려있는 속성 추출
+                socket.emit('select-action', { action: action });
+            });
+        });
 
         /** 포케 API에서 포켓몬 호출
         */
@@ -333,6 +371,10 @@
                 messageGameScreen.textContent = '게임 시작중...'
                 printBattlePokemon(selectedPokemon[0],'me');
                 printBattlePokemon(opSelectedPokemon[0],'op');
+                document.querySelector('.me .name').textContent = selectedPokemon[0].name;  //배틀 선봉 초기값 설정
+                document.querySelector('.op .name').textContent = opSelectedPokemon[0].name;
+                document.querySelector('.me .hp-text').textContent = selectedPokemon[0].stats[0].base_stat;
+                document.querySelector('.op .hp-text').textContent = opSelectedPokemon[0].stats[0].base_stat;
 
                 socket.emit('start-turn');
             }
@@ -340,7 +382,8 @@
 
         //턴 행동 선택 페이즈
         socket.on('start-turn',()=>{
-
+            document.querySelector('#action-btn-container').classList.remove('hidden'); //행동 선택창 활성화
+            //기타 등등 버튼에 emit 이벤트 추가
         })
 
 
