@@ -9,7 +9,6 @@ function App() {
     <Router>
       <Routes>
         <Route path={"/react-match"} element={<Match />} />
-        <Route path={process.env.PUBLIC_URL + "/"} element={<Home />} />
       </Routes>
     </Router>
   );

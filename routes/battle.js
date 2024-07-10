@@ -77,17 +77,198 @@ async function getPokemonInfoById(id){
     let totalStat = 0;
     data.stats.map(i=> totalStat+=i.base_stat); //기타 등등 스탯 들어가있는거
     pokemon.totalStat = totalStat;  //최종 종족값
-    //배틀 중 능력치 상태변화값
-    pokemon.battleHp = pokemon.hp;  
+
+    //배틀 중 사용되는 현재 능력치
     pokemon.battleAttack = pokemon.attack;
     pokemon.battleDefense = pokemon.defense;
     pokemon.battleSpecialAttack = pokemon.specialAttack;
     pokemon.battleSpecialDefense = pokemon.specialDefense;
     pokemon.battleSpeed = pokemon.speed;
+    pokemon.battleAtk = Math.max(pokemon.attack, pokemon.specialAttack);    //공격 수치 = 공격과 특공 중 높은 쪽
+    pokemon.battleDef = pokemon.hp + Math.max(pokemon.defense, pokemon.specialDefense); //내구도 = 체력 + 방특방 중 높은 쪽
+    pokemon.battleDefMax = pokemon.battleDef;   //최대값  
 
 
     console.log(pokemon);
     return pokemon;
+}
+
+/**
+ * 타입상성 배율 효과 계산함수
+ * @param {String} atkType
+ * @param {String} defType
+ * @returns {Number} 배율 계산 결과 (2, 1, 0.5, 0)
+ */
+function typeMatch(atkType, defType) {
+    let result = 1;
+    switch (atkType) {
+        case 'normal': {
+            if (defType == 'rock' || defType == 'steel')
+                result = 0.5;
+            else if (defType == 'ghost')
+                result = 0;
+            break;
+        }
+        case 'fire': {
+            if (defType == 'grass' || defType == 'ice' || defType == 'bug' || defType == 'steel')
+                result = 2;
+            else if (defType == 'fire' || defType == 'water' || defType == 'rock' || defType == 'dragon')
+                result = 0.5;
+            break;
+        }
+        case 'water': {
+            if (defType == 'fire' || defType == 'ground' || defType == 'rock')
+                result = 2;
+            else if (defType == 'water' || defType == 'grass' || defType == 'dragon')
+                result = 0.5;
+            break;
+        }
+        case 'electric': {
+            if (defType == 'water' || defType == 'flying')
+                result = 2;
+            else if (defType == 'electric' || defType == 'grass' || defType == 'dragon')
+                result = 0.5;
+            else if (defType == 'ground')
+                result = 0;
+            break;
+        }
+        case 'grass': {
+            if (defType == 'water' || defType == 'ground' || defType == 'rock')
+                result = 2;
+            else if (defType == 'fire' || defType == 'grass' || defType == 'poison' || defType == 'flying' || defType == 'bug' || defType == 'dragon' || defType == 'steel')
+                result = 0.5;
+            break;
+        }
+        case 'ice': {
+            if (defType == 'grass' || defType == 'ground' || defType == 'flying' || defType == 'dragon')
+                result = 2;
+            else if (defType == 'fire' || defType == 'water' || defType == 'ice' || defType == 'steel')
+                result = 0.5;
+            break;
+        }
+        case 'fighting': {
+            if (defType == 'normal' || defType == 'ice' || defType == 'rock' || defType == 'dark' || defType == 'steel')
+                result = 2;
+            else if (defType == 'poison' || defType == 'flying' || defType == 'psychic' || defType == 'bug' || defType == 'fairy')
+                result = 0.5;
+            else if (defType == 'ghost')
+                result = 0;
+            break;
+        }
+        case 'poison': {
+            if (defType == 'grass' || defType == 'fairy')
+                result = 2;
+            else if (defType == 'poison' || defType == 'ground' || defType == 'rock' || defType == 'ghost')
+                result = 0.5;
+            else if (defType == 'steel')
+                result = 0;
+            break;
+        }
+        case 'ground': {
+            if (defType == 'fire' || defType == 'electric' || defType == 'poison' || defType == 'rock' || defType == 'steel')
+                result = 2;
+            else if (defType == 'grass' || defType == 'bug')
+                result = 0.5;
+            else if (defType == 'flying')
+                result = 0;
+            break;
+        }
+        case 'flying': {
+            if (defType == 'grass' || defType == 'fighting' || defType == 'bug')
+                result = 2;
+            else if (defType == 'electric' || defType == 'rock' || defType == 'steel')
+                result = 0.5;
+            break;
+        }
+        case 'psychic': {
+            if (defType == 'fighting' || defType == 'poison')
+                result = 2;
+            else if (defType == 'psychic' || defType == 'steel')
+                result = 0.5;
+            else if (defType == 'dark')
+                result = 0;
+            break;
+        }
+        case 'bug': {
+            if (defType == 'grass' || defType == 'psychic' || defType == 'dark')
+                result = 2;
+            else if (defType == 'fire' || defType == 'fighting' || defType == 'poison' || defType == 'flying' || defType == 'ghost' || defType == 'steel' || defType == 'fairy')
+                result = 0.5;
+            break;
+        }
+        case 'rock': {
+            if (defType == 'fire' || defType == 'ice' || defType == 'flying' || defType == 'bug')
+                result = 2;
+            else if (defType == 'fighting' || defType == 'ground' || defType == 'steel')
+                result = 0.5;
+            break;
+        }
+        case 'ghost': {
+            if (defType == 'psychic' || defType == 'ghost')
+                result = 2;
+            else if (defType == 'dark')
+                result = 0.5;
+            else if (defType == 'normal')
+                result = 0;
+            break;
+        }
+        case 'dragon': {
+            if (defType == 'dragon')
+                result = 2;
+            else if (defType == 'steel')
+                result = 0.5;
+            else if (defType == 'fairy')
+                result = 0;
+            break;
+        }
+        case 'dark': {
+            if (defType == 'psychic' || defType == 'ghost')
+                result = 2;
+            else if (defType == 'fighting' || defType == 'dark' || defType == 'fairy')
+                result = 0.5;
+            break;
+        }
+        case 'steel': {
+            if (defType == 'ice' || defType == 'rock' || defType == 'fairy')
+                result = 2;
+            else if (defType == 'fire' || defType == 'water' || defType == 'electric' || defType == 'steel')
+                result = 0.5;
+            break;
+        }
+        case 'fairy': {
+            if (defType == 'fighting' || defType == 'dragon' || defType == 'dark')
+                result = 2;
+            else if (defType == 'fire' || defType == 'poison' || defType == 'steel')
+                result = 0.5;
+            break;
+        }
+        default: {
+            console.log('여기 없는 타입인데? ' + atkType + '/' + defType);
+        }
+    }
+    return result;
+}
+
+
+/**
+ * 
+ * @param {String} atkType 
+ * @param {*} defPokemon 
+ * 공격 타입과 피격 포켓몬을 입력하면 특성, 타입등을 고려해 데미지의 배율을 실수 숫자로 반환
+ */
+function typeMatchByPokemon(atkType, defPokemon) {
+    let result = 1;
+    //타입 계산
+    defPokemon.types.forEach(element => {
+        result *= typeMatch(atkType, element);
+    });
+    //특성 계산
+
+    //도구 계산
+
+    //필드 보너스 계산
+
+    return result;
 }
 
 connectDB.then(client => {
@@ -188,7 +369,11 @@ io.on('connection', async(socket) => {   //접속 할때마다 유저에게 고�
     //wait이면 시작 대기중 play면 게임중, win이면 접속 종료 시 포인트 증가, lose면 포인트 감소
     let status = 'wait';
     let action = 'attack1'; //기본값은 1번 타입으로 공격
-    
+
+    let myDethCount = 0;    //먼저 2가 되면 패배
+    let opDethCount = 0;
+    let endFlag = false;
+
     //0 - 접속 이벤트
     /**
      * 
@@ -228,10 +413,12 @@ io.on('connection', async(socket) => {   //접속 할때마다 유저에게 고�
      * 3. home 유저는 start 버튼을 눌러 askStart 요청을 보낸다
      * 4. 약간의 딜레이를 가졌다가, 아무도 나가지 않았다면 start한다
      */
-    let selectedPokemon = [];  //선택한 포켓몬
-    let opSelectedPokemon = []  //상대가 선택한 포켓몬
-    let myFieldPokemon = 0; //내 필드에 나와있는 포켓몬 인덱스
-    let opFieldPokemon = 0; //상대 필드에 나와있는 포켓몬 인덱스
+    let myBattlePokemon = [];  //선택한 포켓몬
+    let opBattlePokemon = []  //상대가 선택한 포켓몬
+    let myFieldPokemonIndex = 0; //현재 내 필드에 나와있는 포켓몬 인덱스
+    let opFieldPokemonIndex = 0; //현재 상대 필드에 나와있는 포켓몬 인덱스
+    let myFieldPokemon;
+    let opFieldPokemon;
 
     let startGameTimeout;
     socket.on('askStart',async(data)=>{
@@ -267,54 +454,197 @@ io.on('connection', async(socket) => {   //접속 할때마다 유저에게 고�
      * 포켓몬 선택 슈신
      */
     socket.on('select-pokemon',async(data)=>{
-        selectedPokemon=data;
-        io.to(roomCode).emit('select-pokemon',{side:side,pokemon:selectedPokemon});
-        console.log(selectedPokemon);
+        myBattlePokemon=data;
+        io.to(roomCode).emit('select-pokemon',{side:side,pokemon:myBattlePokemon});
+        console.log(myBattlePokemon);
     })
 
     //상대 선택 덱 수신
     socket.on('opSelect',(data)=>{
-        opSelectedPokemon = data.opPokemon;
+        opBattlePokemon = data.opPokemon;
     })
 
     //배틀 턴 시작 수신
     socket.on('start-turn',(data)=>{
-        io.to(myId).emit('start-turn');
+        /**
+         * 여기에 배틀 결과 계산하는 과정이 전에 있어야 함
+         */
+
+        //매 턴 계산된 필드의 결과를 전달
+
+        console.log('emit [start-turn]');
+        myFieldPokemon = myBattlePokemon[myFieldPokemonIndex];
+        opFieldPokemon = opBattlePokemon[opFieldPokemonIndex];
+        io.to(myId).emit('start-turn',{me:myBattlePokemon[myFieldPokemonIndex],op:opBattlePokemon[opFieldPokemonIndex]});
     })
 
     //액션 수신 > 액션 전달
     socket.on('select-action',async(data)=>{
         action = data.action;
-        io.to(roomCode).emit('select-action',{side:side,action});   //어떤 사이드의 유저가 어떤 액션을 선택했는지 전송
+        io.to(roomCode).emit('send-action',{side:data.side,action:action});   //어떤 사이드의 유저가 어떤 액션을 선택했는지 전송
     })
 
-    //턴 종료 수신 > 결과 계산 후 전달
-    function battleAction(action,side){  //우선도와 스피드에 따라 어느쪽이 먼저 행동할지 모르기 때문에 함수로 분리해서 사용
+    
+    function battleAction(myAction,opAction){  //우선도와 스피드에 따라 어느쪽이 먼저 행동할지 모르기 때문에 함수로 분리해서 사용
+        let log = [];
+        //여기에 교체, 항복 추가
+        if(myAction=='change'&&myDethCount<1){ //내 포켓몬 교체
+            myFieldPokemonIndex++;
+            myFieldPokemonIndex = myFieldPokemonIndex%2;
+            log.push('myChange')
+        }
+        if(opAction=='change'&&opDethCount<1){ //상대 포켓몬 교체
+            opFieldPokemonIndex++;
+            opFieldPokemonIndex = opFieldPokemonIndex%2;
+            log.push('opChange')
+        }
+
+        if (myBattlePokemon[myFieldPokemonIndex].speed > opBattlePokemon[opFieldPokemonIndex].speed){ 
+            //내가 더 빠를 때
+
+            //내 기술 시전
+            if(myAction!='change'&&myAction!='surrender'){
+                attackAction(myAction,'my');
+                log.push('myAction');
+                if(opBattlePokemon[opFieldPokemonIndex].battleDef<=0){   //상대 포켓몬 죽으면?
+                    opDethCount++;
+                    opFieldPokemonIndex++;
+                    opFieldPokemonIndex = opFieldPokemonIndex%2;  //데스카운트 추가하고 교체
+                    log.push('opDead');
+                    if(opDethCount==2){ //상대 포켓몬 전멸시
+                        log.push('win')
+                    }
+                    
+                    return log; //죽으면 턴 끝
+                }
+            }
+            //이후 상대 기술 시전
+            if(opAction!='change'&&opAction!='surrender'){
+                attackAction(opAction,'op');
+                log.push('opAction');
+                if(myBattlePokemon[myFieldPokemonIndex].battleDef<=0){   //내 포켓몬 죽으면?
+                    myDethCount++;
+                    myFieldPokemonIndex++;
+                    myFieldPokemonIndex = myFieldPokemonIndex%2;  //데스카운트 추가하고 교체
+                    log.push('myDead');
+                    if(myDethCount==2){ //내 포켓몬 전멸시
+                        log.push('lose')
+                    }
+                    
+                    return log;
+                }
+            }
+        }
+        else{   
+            //상대가 더 빠를 때
+
+            //상대 기술 시전
+            if(opAction!='change'&&opAction!='surrender'){
+                attackAction(opAction,'op');
+                log.push('opAction');
+                if(myBattlePokemon[myFieldPokemonIndex].battleDef<=0){   //내 포켓몬 죽으면?
+                    myDethCount++;
+                    myFieldPokemonIndex++;
+                    myFieldPokemonIndex = myFieldPokemonIndex%2;  //데스카운트 추가하고 교체
+                    log.push('myDead');
+                    if(myDethCount==2){ //내 포켓몬 전멸시
+                        log.push('lose');
+                        status = 'lose';
+                    }
+                    
+                    return log;
+                }
+            }
+            //이후 내 기술 시전
+            if(myAction!='change'&&myAction!='surrender'){
+                attackAction(myAction,'my');
+                log.push('myAction');
+                if(opBattlePokemon[opFieldPokemonIndex].battleDef<=0){   //상대 포켓몬 죽으면?
+                    opDethCount++; 
+                    opFieldPokemonIndex++;
+                    opFieldPokemonIndex = opFieldPokemonIndex%2;  //데스카운트 추가하고 교체
+                    log.push('opDead');
+                    if(opDethCount==2){ //상대 포켓몬 전멸시
+                        log.push('win');
+                        status = 'win';
+                    }
+                    
+                    return log; //죽으면 턴 끝
+                }
+            }
+        }
+        return log;
+    }
+    //공격 액션 결과 계산 > hp 등 상태변화 반영 함수
+    function attackAction(action,side){
+
         switch(action){
-            case 'surrender' :{};
-            case 'swap' :{};
-            case 'attack1':{};
-            case 'attack2':{};
-            default :;
+            case 'typeAttack1':{
+                if(side == 'my'){  //내 공격
+                    let damage = Math.floor(
+                    myFieldPokemon.battleAtk * typeMatchByPokemon(myFieldPokemon.types[0],opFieldPokemon));
+                    
+                    opFieldPokemon.battleDef -= damage;   
+                }
+                else{               //상대 공격
+                    let damage = Math.floor(   
+                        opFieldPokemon.battleAtk * typeMatchByPokemon(opFieldPokemon.types[0],myFieldPokemon));
+                    
+                    myFieldPokemon.battleDef -= damage;   
+                }
+                break;
+            }
+            case 'typeAttack2':{
+                if(side == 'my'){
+                    let damage = Math.floor(
+                        myFieldPokemon.battleAtk * typeMatchByPokemon(myFieldPokemon.types[1],opFieldPokemon));
+                    
+                        opFieldPokemon.battleDef -= damage;   
+                }
+                else{
+                    let damage = Math.floor(
+                        opFieldPokemon.battleAtk * typeMatchByPokemon(opFieldPokemon.types[1],myFieldPokemon));
+                    
+                    myFieldPokemon.battleDef -= damage;   
+                }
+                break;
+            }
+            case 'normalAttack':{
+                if(side == 'my'){  
+                    let damage = Math.floor(myFieldPokemon.battleAtk*0.8);
+                    
+                    opFieldPokemon.battleDef -= damage;   
+                }
+                else{
+                    let damage = Math.floor(opFieldPokemon.battleAtk*0.8);
+                    
+                    myFieldPokemon.battleDef -= damage;   
+                }
+                break;
+            }
+            default : 
+                console.log('잘못된 배틀 명령:'+side+'의 '+action);
+                break;
         }
     }
-    socket.on('end-turn',async(data)=>{
+
+    //턴 종료 수신 > 결과 계산 후 전달
+    socket.on('send-action',async(data)=>{
         let opAction = data.opAction;
         let myAction = data.myAction;
+        let log = battleAction(myAction,opAction);
+
         //액션 결과 계산
-        io.to(myId).emit('end-turn',{})
+        //로그랑 포켓몬 남은 체력 등등 도 전달해줘야 할듯
+        //필요없는 부분은 짤라서 전달해서 통신 데이터 양 줄이기
+        io.to(myId).emit('end-turn',{log:log,myPokemon:myBattlePokemon,opPokemon:opBattlePokemon});
+
     })
 
-    //2 - 게임 종료 이벤트(연결끊김, 게임 종료 등)
-    /**
-     * endGame을 수신받는 경우
-     * 0. 승부가 나서 각자 endGame 전송
-     * 1. 상대가 떠나서 유저가 서버로부터 승리 통보를 받고, 그걸 다시 서버에 알림
-     * 2. 항복을 눌러서 먼저 패배정보 전송
-     */
-    socket.on('endGame',async(data)=>{
-        console.log('endGame 수신됨')
-        status = data.result;   //결과 반영
+
+    //2 - 게임 종료 (연결끊김, 정산)
+    socket.on('endGame',(data)=>{   //게임 중 상대 떠남
+        status = data.result;
     })
 
     socket.on('leave',async(data)=>{   //게임 시작 전 상대 유저 떠남

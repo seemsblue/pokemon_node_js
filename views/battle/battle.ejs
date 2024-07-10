@@ -4,10 +4,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><%= session.code%>번 방</title>
-    <link href="/css/battle.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <link href="/css/battle.css" rel="stylesheet">
+
 </head>
 <body>
+    
+    <div id="resultModal" class="hidden">
+        <div class="modal-content bg-light p-5 rounded shadow">
+            <h1 id="resultText" class="mb-4"></h1>
+            <p>10초 후에 매칭 페이지로 이동합니다...</p>
+        </div>
+    </div>
+
     <header>
         <h1><%= session.title%></h1>
         <span><%= session.code%></span>
@@ -31,7 +40,8 @@
     <div class="row" id="game-screen" style="height: 900px; width:100%">
 
         <div class="col-6 me" id="me" style="height: 70%; position:relative;">
-            <div class="battle-pokemon bot">내포켓몬 예시위치
+            <div class="battle-pokemon bot">
+                <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/132.png">
                 <div class="battle-pokemon-info">
                     <div class="name"></div>
                     <div class="hp-container">
@@ -42,7 +52,8 @@
             </div>
         </div>
         <div class="col-6 op" id="op" style="height: 70%; position:relative;">
-            <div class="battle-pokemon top">상대포켓몬 예시위치
+            <div class="battle-pokemon top">
+                <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/132.png">
                 <div class="battle-pokemon-info">
                     <div class="name"></div>
                     <div class="hp-container">
@@ -75,6 +86,77 @@
     <script src="https://cdn.jsdelivr.net/npm/socket.io@4.7.2/client-dist/socket.io.min.js"></script>
 
     <script>
+        /** 포케 API에서 포켓몬 호출
+        * 
+        */
+        async function getPokemonInfoById(id){   
+            //서버에서는 도감번호만 보내주고, 이 작업은 클라이언트 사이드에서 해야 할지는 고민
+            //서버에서 게임을 할때마다 이미지까지 다 fetch하면 너무 오래 걸리고, 클라이언트한테 종족값까지 맡기면 위조 위험이 생기는데
+            //1. 사실 해결방법은 용량이 적어서 그냥 데이터베이스에 보관하면 되는데 그럼 api 써보는 의미가 없어짐
+            //2. 타협해서 포켓몬 도감번호만 서버와 유저가 공유하고, 필요한 정보는 각자 불러오는데 그러면 나중에 위조검사 확장할수는 있음
+            
+            // 병렬로 fetch 요청
+            let [response, speciesResponse, formResponse] = await Promise.all([
+                fetch(`https://pokeapi.co/api/v2/pokemon/${id}`),
+                fetch(`https://pokeapi.co/api/v2/pokemon-species/${id}`),
+                fetch(`https://pokeapi.co/api/v2/pokemon-form/${id}`)
+            ]);
+            // 각 응답을 JSON으로 변환
+            let data = await response.json();
+            let speciesData = await speciesResponse.json();
+            let formData = await formResponse.json();
+        
+            let frontImg = formData.sprites.front_default;
+            let backImg;
+            try{
+                backImg = formData.sprites.back_default;
+            }
+            catch{
+                backImg = frontImg; //back은 없는 경우도 있음
+            }
+            
+            let jpSpecies = speciesData.names.find(i => i.language.name === "ja-Hrkt");
+            let name = jpSpecies.name;
+            try{
+                let krSpecies = speciesData.names.find(i => i.language.name === "ko");
+                name = krSpecies.name;
+            }catch(e){
+                console.log('포켓몬 한글이름 없는듯 '+e);
+            }
+        
+            let pokemon ={};
+            pokemon.name = name; //이름(한글 우선, 없으면 일본어)
+            pokemon.id = id;    //도감코드
+            pokemon.types = data.types.map(typeInfo => typeInfo.type.name); //타입
+            pokemon.frontImg = frontImg;
+            pokemon.backImg = backImg;
+            pokemon.stats = data.stats;
+            let totalStat = 0;
+            data.stats.map(i=> totalStat+=i.base_stat); //기타 등등 스탯 들어가있는거
+            pokemon.totalStat = totalStat;  //최종 종족값
+
+            //세부 6가지 종족값
+            pokemon.hp = data.stats[0].base_stat;
+            pokemon.attack = data.stats[1].base_stat;
+            pokemon.defense = data.stats[2].base_stat;
+            pokemon.specialAttack = data.stats[3].base_stat;
+            pokemon.specialDefense = data.stats[4].base_stat;
+            pokemon.speed = data.stats[5].base_stat;
+
+            //배틀 중 사용되는 현재 능력치
+            pokemon.battleAttack = pokemon.attack;
+            pokemon.battleDefense = pokemon.defense;
+            pokemon.battleSpecialAttack = pokemon.specialAttack;
+            pokemon.battleSpecialDefense = pokemon.specialDefense;
+            pokemon.battleSpeed = pokemon.speed;
+            pokemon.battleAtk = Math.max(pokemon.attack, pokemon.specialAttack);    //공격 수치 = 공격과 특공 중 높은 쪽
+            pokemon.battleDef = pokemon.hp + Math.max(pokemon.defense, pokemon.specialDefense); //내구도 = 체력 + 방특방 중 높은 쪽
+            pokemon.battleDefMax = pokemon.battleDef;   //최대값  
+
+            //console.log(pokemon);
+            return pokemon;
+        }
+
         const socket = io();
         const timerSpan = document.querySelector('#timer span');
         const askStartBtn = document.getElementById('askStartBtn');
@@ -82,6 +164,9 @@
         const opGameScreen = document.querySelector('#game-screen #op');
         const messageGameScreen = document.querySelector('#game-screen #message-container');
         const btnGameScreen = document.querySelector('#game-screen #action-btn-container');
+        const myPokemonImg = document.querySelector('#game-screen #me img');
+        const opPokemonImg = document.querySelector('#game-screen #op img');
+
 
         let countdownInterval;
         let battleCountdownInterval;
@@ -103,9 +188,23 @@
         let myDeck=[];
         let opDeck=[];
         let battleDeck = [];
-        let selectedPokemon = [];  //선택한 포켓몬
-        let opSelectedPokemon = []  //상대가 선택한 포켓몬
-        
+        let mySelectedPokemon = [];  //선택한 포켓몬
+        let opSelectedPokemon = [];  //상대가 선택한 포켓몬
+        let myFieldPokemon = mySelectedPokemon[0];  //현재 필드에 나와 있는 포켓몬
+        let opFieldPokemon = opSelectedPokemon[0];  
+        let myFieldPokemonIndex = 0;    //현재 필드에 나와 있는 포켓몬의 내 덱에서의 인덱스 
+        let opFieldPokemonIndex = 0;
+        //필드 포켓몬 전환
+        function changeFieldPokemon(side){ 
+            if(side=='me'){
+                myFieldPokemonIndex = (myFieldPokemonIndex+1)%2;       
+                myFieldPokemon = mySelectedPokemon[myFieldPokemonIndex];
+            }
+            else{
+                opFieldPokemonIndex = (opFieldPokemonIndex+1)%2;       
+                opFieldPokemon = opSelectedPokemon[opFieldPokemonIndex];
+            }
+        }
 
         function clearGameScreen(){
             /*
@@ -117,75 +216,101 @@
             btnGameScreen.classList.add('hidden');
         }
 
-        function printBattlePokemon(pokemon,side){
-            let screen = side == 'me' ? myGameScreen : opGameScreen;
-            screen.innerHTML = 
-            `<div class="battle-pokemon">
-                <img src="${pokemon.frontImg}">
-                <div class="battle-pokemon-info">
-                    <div class="name"></div>
-                    <div class="hp-container">
-                        <div class="hp"></div>
-                        <div class="hp-text"></div>
+        function initGameScreen(){
+            document.querySelector('#game-screen').innerHTML = `
+            <div class="col-6 me" id="me" style="height: 70%; position:relative;">
+                <div class="battle-pokemon bot">
+                    <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/132.png">
+                    <div class="battle-pokemon-info">
+                        <div class="name"></div>
+                        <div class="hp-container">
+                            <div class="hp"></div>
+                            <div class="hp-text"></div>
+                        </div>
                     </div>
                 </div>
-            </div>`
-        }
+            </div>
+            <div class="col-6 op" id="op" style="height: 70%; position:relative;">
+                <div class="battle-pokemon top">
+                    <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/132.png">
+                    <div class="battle-pokemon-info">
+                        <div class="name"></div>
+                        <div class="hp-container">
+                            <div class="hp"></div>
+                            <div class="hp-text"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-        //액션버튼에 이벤트 추가
-        document.querySelectorAll('#action-btn-container .action-btn').forEach(button => {
+            <div id="message-container"></div>
+            <div class="row hidden" id="action-btn-container">
+                <button class="col-6 action-btn" data-action="typeAttack1">타입공격1</button>
+                <button class="col-6 action-btn" data-action="typeAttack2">타입공격2</button>
+                <button class="col-6 action-btn" data-action="normalAttack">일반공격</button>
+                <button class="col-6 action-btn" data-action="change">교체</button>
+            </div>
+            `
+            //액션버튼에 이벤트 추가
+            document.querySelectorAll('#action-btn-container .action-btn').forEach(button => {
             button.addEventListener('click', function() {
-                // div 컨테이너에 hidden 클래스를 추가
-                document.getElementById('action-btn-container').classList.add('hidden');
-        
                 // data-action 속성에 따라 socket.emit 호출
                 const action = this.getAttribute('data-action');    //버튼에 달려있는 속성 추출
-                socket.emit('select-action', { action: action });
+                socket.emit('select-action', { side : side ,action : action });
+                console.log(action+'누름');
+
+                // div 컨테이너에 hidden 클래스를 추가
+                document.getElementById('action-btn-container').classList.add('hidden');
             });
         });
-
-        /** 포케 API에서 포켓몬 호출
-        */
-        async function getPokemonInfoById(id){   
-            //서버에서는 도감번호만 보내주고, 이 작업은 클라이언트 사이드에서 해야 할지는 고민
-            //서버에서 게임을 할때마다 이미지까지 다 fetch하면 너무 오래 걸리고, 클라이언트한테 종족값까지 맡기면 위조 위험이 생기는데
-            //1. 사실 해결방법은 용량이 적어서 그냥 데이터베이스에 보관하면 되는데 그럼 api 써보는 의미가 없어짐
-            //2. 타협해서 포켓몬 도감번호만 서버와 유저가 공유하고, 필요한 정보는 각자 불러오는데 그러면 나중에 위조검사 확장할수는 있음
-            
-            // 병렬로 fetch 요청
-            let [response, speciesResponse, formResponse] = await Promise.all([
-                fetch(`https://pokeapi.co/api/v2/pokemon/${id}`),
-                fetch(`https://pokeapi.co/api/v2/pokemon-species/${id}`),
-                fetch(`https://pokeapi.co/api/v2/pokemon-form/${id}`)
-            ]);
-            // 각 응답을 JSON으로 변환
-            let data = await response.json();
-            let speciesData = await speciesResponse.json();
-            let formData = await formResponse.json();
-        
-            let frontImg = formData.sprites.front_default;
-            
-            let jpSpecies = speciesData.names.find(i => i.language.name === "ja-Hrkt");
-            let name = jpSpecies.name;
-            try{
-                let krSpecies = speciesData.names.find(i => i.language.name === "ko");
-                name = krSpecies.name;
-            }catch(e){
-                console.log('포켓몬 한글이름 없는듯 '+e);
-            }
-        
-            let pokemon ={};
-            pokemon.name = name;    //이름(한글 우선, 없으면 일본어)
-            pokemon.id = id;    //도감코드
-            pokemon.types = data.types.map(typeInfo => typeInfo.type.name); //타입
-            pokemon.frontImg = frontImg;
-            pokemon.stats = data.stats;
-            let totalStat = 0;
-            data.stats.map(i=> totalStat+=i.base_stat); //기타 등등 스탯 들어가있는거
-            pokemon.totalStat = totalStat;  //최종 종족값
-            //console.log(pokemon);
-            return pokemon;
         }
+
+        // 이 부분을 모듈화해서 내부 텍스트 요소만 그때그때 바뀌게 해야할듯
+        // 전체 리렌더
+        function paintBattlePokemon(){
+            document.querySelector('#game-screen #me .name').textContent = myFieldPokemon.name;
+            document.querySelector('#game-screen #me .hp-container .hp').style.width = 
+            `${(myFieldPokemon.battleDef / myFieldPokemon.battleDefMax)*100}%`;
+            document.querySelector('#game-screen #me img').src = myFieldPokemon.frontImg;
+            
+            document.querySelector('#game-screen #op .name').textContent = opFieldPokemon.name;
+            document.querySelector('#game-screen #op .hp-container .hp').style.width = 
+            `${(opFieldPokemon.battleDef / opFieldPokemon.battleDefMax)*100}%`;
+            document.querySelector('#game-screen #op img').src = opFieldPokemon.frontImg;
+        }
+        function paintBattlePokemonInfo(){
+            document.querySelector('#game-screen #me .name').textContent = myFieldPokemon.name;
+            document.querySelector('#game-screen #me .hp-container .hp').style.width = 
+            `${(myFieldPokemon.battleDef / myFieldPokemon.battleDefMax)*100}%`;
+
+            document.querySelector('#game-screen #op .name').textContent = opFieldPokemon.name;
+            document.querySelector('#game-screen #op .hp-container .hp').style.width = 
+            `${(opFieldPokemon.battleDef / opFieldPokemon.battleDefMax)*100}%`;
+        }
+
+        function showResultModal(result){
+            const resultModal = document.getElementById('resultModal');
+            const resultText = document.getElementById('resultText');
+
+                if (result=='win') {
+                    resultText.textContent = '승리했습니다!';
+                    resultText.classList.add('text-success');
+                } else if(result=='lose'){
+                    resultText.textContent = '패배했습니다!';
+                    resultText.classList.add('text-danger');
+                }
+
+                // 모달 표시
+                resultModal.classList.remove('hidden');
+                resultModal.classList.add('modal-overlay');
+
+                // 10초 뒤에 메인 페이지로 이동
+                setTimeout(() => {
+                    window.location.href = '/main'; // 메인 페이지 URL로 변경
+                }, 10000);
+        }
+    
+        
 
         /**
         
@@ -228,7 +353,7 @@
             document.querySelectorAll('.selection-checkbox:checked').forEach((checkbox, index) => {
                 selectedItems.push(Number(checkbox.getAttribute('data-index')));    //data-index 속성 가져오기
             });
-            console.log('Selected items:', selectedItems);
+            console.log('선택함:', selectedItems);
             document.querySelector('#confirm-button').classList.add('hidden');
         }
 
@@ -263,6 +388,19 @@
                 askStartBtn.addEventListener('click', askStartHandler);
             }
         })
+
+        //액션버튼에 이벤트 추가
+        document.querySelectorAll('#action-btn-container .action-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                // data-action 속성에 따라 socket.emit 호출
+                const action = this.getAttribute('data-action');    //버튼에 달려있는 속성 추출
+                socket.emit('select-action', { side : side ,action : action });
+                console.log(action+'누름');
+
+                // div 컨테이너에 hidden 클래스를 추가
+                document.getElementById('action-btn-container').classList.add('hidden');
+            });
+        });
 
         //askStart 수신(게임 시작 요청)
         socket.on('askStart',()=>{
@@ -353,58 +491,175 @@
             }))
         })
 
+        //선택된 덱 수신
         socket.on('select-pokemon',(data)=>{
             if(data.side == side){
-                selectedPokemon = data.pokemon;
+                mySelectedPokemon = data.pokemon;
                 myReadyFlag = true;
+                console.log('내 덱 수신');
             }
             else{
                 opSelectedPokemon = data.pokemon;
                 opReadyFlag = true;
+                console.log('상대 덱 수신');
             }
-            
+            myFieldPokemon = mySelectedPokemon[0];
+            opFieldPokemon = opSelectedPokemon[0];
             if(areBothPlayersReady()==true){    //두명 다 선택을 마치고 기다리고 있는 상태라면 배틀 페이즈 시작 요청
                 socket.emit('opSelect',{opPokemon:opSelectedPokemon});
-                setPlayersNotReady();
-                console.log(selectedPokemon+'/'+opSelectedPokemon);
+                setPlayersNotReady();   //준비 상태 초기화
+                //console.log(mySelectedPokemon+'/'+opSelectedPokemon);
                 clearGameScreen();
                 messageGameScreen.textContent = '게임 시작중...'
-                printBattlePokemon(selectedPokemon[0],'me');
-                printBattlePokemon(opSelectedPokemon[0],'op');
-                document.querySelector('.me .name').textContent = selectedPokemon[0].name;  //배틀 선봉 초기값 설정
+                initGameScreen();
+                document.querySelector('.me .name').textContent = mySelectedPokemon[0].name;  //배틀 선봉 초기값 설정
                 document.querySelector('.op .name').textContent = opSelectedPokemon[0].name;
-                document.querySelector('.me .hp-text').textContent = selectedPokemon[0].stats[0].base_stat;
-                document.querySelector('.op .hp-text').textContent = opSelectedPokemon[0].stats[0].base_stat;
-
+                document.querySelector('.me .hp-text').textContent = myFieldPokemon.battleDef;
+                document.querySelector('.op .hp-text').textContent = opFieldPokemon.battleDef;
+                paintBattlePokemon();
                 socket.emit('start-turn');
             }
         })
 
-        //턴 행동 선택 페이즈
-        socket.on('start-turn',()=>{
+
+        /**
+        * 턴 시작 페이즈
+        */
+        let timeInterval;
+
+        function startTurn(){
+            let counter = 31;
+            timerSpan.textContent = counter;
+            paintBattlePokemon();
+
+            // 30초 카운트다운 시작
+            timerInterval = setInterval(() => {
+            counter--;
+            timerSpan.textContent = counter;
+
+            if (counter <= 0) {
+                clearInterval(timerInterval);
+                timerSpan.textContent = '통신 대기중...';
+
+                // 양 플레이어의 액션이 선택되지 않은 경우 기본 액션 발동
+                if (myAction == null) myAction = 'normalAttack';
+                if (opAction == null) opAction = 'normalAttack';
+                socket.emit('send-action', { myAction: myAction, opAction: opAction });
+                myAction = null;
+                opAction = null;
+            }
+        }, 1000);
+        }
+
+        //소켓으로부터 턴 시작 신호 받으면 턴 시작
+        socket.on('start-turn',(data)=>{
             document.querySelector('#action-btn-container').classList.remove('hidden'); //행동 선택창 활성화
+            startTurn();    //턴 카운트 시작
             //기타 등등 버튼에 emit 이벤트 추가
         })
 
-
-        //채팅 구현
-        document.querySelector('.chat div button').addEventListener('click',(e)=>{  
-            let msg = document.querySelector('.chat div input').value;
-            socket.emit('chat',{msg:msg,room:'<%= JSON.stringify(session.code) %>',side:'<%=side%>'})    //해당 방 룸의 코드로 chat 요청을 보낸다
-            document.querySelector('.chat div input').value='';
-        })
-        socket.on('chat-cast',(data)=>{
-            if(data.side=='<%=side%>'){ //내 side와 메시지의 side가 같다면 왼쪽정렬
-                document.querySelector('.msg-box').insertAdjacentHTML('beforeend', `<div class="chat-box"><span>${data.msg}</span></div>`)
+        let myAction =null;
+        let opAction =null;
+        //액션 선택 정보를 수신하고 2명의 액션이 선택되었다면 턴을 종료하고 서버에 결과 계산 요청 전송
+        socket.on('send-action',(data)=>{
+            if(data.side==side){    //내 사이드와 일치한다면 내 액션
+                myAction = data.action;
             }
             else{
-                document.querySelector('.msg-box').insertAdjacentHTML('beforeend', `<div class="chat-box text-end"><span>${data.msg}</span></div>`) 
+                opAction = data.action;
+            }
+
+            if(myAction!=null&&opAction!=null){
+                clearInterval(timerInterval); // 카운트다운 중단
+                socket.emit('send-action',{myAction:myAction,opAction:opAction});
+                myAction=null;
+                opAction=null;
+            }
+        })
+
+        /**
+        * 턴 종료 결과 출력 페이즈
+        */
+        function printLog(logLine){
+            if(logLine=='lose'||logLine=='win'){    //승리나 패배 시 결과 모달 출력
+                showResultModal(logLine);
+            }
+            switch(logLine){    //로그 종류별로 화면 효과 반영(최종적으로는 어차피 소켓에서 온 최종상태 프린트)
+                case 'myChange':
+                {
+                    let prevName = myFieldPokemon.name; //기존 포켓몬 이름
+                    changeFieldPokemon('me');
+                    /**
+                    *   0. 교체 문구를 띄운다
+                    *   1. img 투명도 0으로 만든다.
+                    *   2. src를 바꾼다.
+                    *   3. 투명도를 1로 바꾼다.
+                    *   4. 교체 이름을 띄운다
+                    */
+                    messageGameScreen.textContent = `돌아와! ${prevName}!`; //교체 문구를 띄운다
+                    myPokemonImg.classList.add('faded');        //투명화
+                    //1초 텀
+                    setTimeout(() => {
+                        myPokemonImg.src = myFieldPokemon.backImg;  // 이미지 교체
+                        myPokemonImg.classList.remove('faded');     // 투명도 제거
+                        messageGameScreen.textContent = `힘내! ${myFieldPokemon.name}!`; // 교체 이름을 띄운다
+                    }, 1000); //1초
+                }
+                case 'opChange':
+                {
+                    let prevName = opFieldPokemon.name; //기존 포켓몬 이름
+                    changeFieldPokemon('op');
+                    /**
+                    *   0. 교체 문구를 띄운다
+                    *   1. img 투명도 0으로 만든다.
+                    *   2. src를 바꾼다.
+                    *   3. 투명도를 1로 바꾼다.
+                    *   4. 교체 이름을 띄운다
+                    */
+                    messageGameScreen.textContent = `상대는 ${prevName}를 넣었다!`; //교체 문구를 띄운다
+                    myPokemonImg.classList.add('faded');        //투명화
+                    //1초 텀
+                    setTimeout(() => {
+                        myPokemonImg.src = myFieldPokemon.backImg;  // 이미지 교체
+                        myPokemonImg.classList.remove('faded');     // 투명도 제거
+                        messageGameScreen.textContent = `상대는 ${myFieldPokemon.name}를 내보냈다!`; // 교체 이름을 띄운다
+                    }, 1000); //1초
+                }
+                case 'myAction':
+                case 'opAction':
+                case 'myDead' :
+                case 'opDead' :
+            }
+            socket.emit('end-print');
+        }
+        socket.on('end-turn',(log)=>{
+            log.forEach(logLine=>{
+                printLog(logLine);
+            })
+        })
+
+        //특정 플레이어가 출력을 마치고 다음 턴 시작 대기중
+        socket.on('end-print',(data)=>{
+            timerSpan.textContent = '통신 대기중...';
+
+            if(data.side == side){
+                myReadyFlag = true;
+            }
+            else{
+                opReadyFlag = true;
+            }
+            if(areBothPlayersReady()==true){    //두명 다 선택을 마치고 기다리고 있는 상태라면 배틀 페이즈 시작 요청
+                setPlayersNotReady();
+                socket.emit('start-turn');
             }
         })
         
-        //상대로부터 결과 통보받았을 때
+
+
+        
+        
+        //상대가 게임 중 나가거나 항복했을 때
         socket.on('endGame',(data)=>{
-            alert(data.msg);
             socket.emit('endGame',{result:data.result});
         })
 
@@ -422,6 +677,21 @@
                 window.location.href = '/match';
             }
         });
+
+        //채팅 구현
+        document.querySelector('.chat div button').addEventListener('click',(e)=>{  
+            let msg = document.querySelector('.chat div input').value;
+            socket.emit('chat',{msg:msg,room:'<%= JSON.stringify(session.code) %>',side:'<%=side%>'})    //해당 방 룸의 코드로 chat 요청을 보낸다
+            document.querySelector('.chat div input').value='';
+        })
+        socket.on('chat-cast',(data)=>{
+            if(data.side=='<%=side%>'){ //내 side와 메시지의 side가 같다면 왼쪽정렬
+                document.querySelector('.msg-box').insertAdjacentHTML('beforeend', `<div class="chat-box"><span>${data.msg}</span></div>`)
+            }
+            else{
+                document.querySelector('.msg-box').insertAdjacentHTML('beforeend', `<div class="chat-box text-end"><span>${data.msg}</span></div>`) 
+            }
+        })
     </script>
 </body>
 </html>
