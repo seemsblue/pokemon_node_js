@@ -39,6 +39,9 @@
 
     <div class="row" id="game-screen" style="height: 900px; width:100%">
 
+        <div class = "col-6 pick-left"></div>
+        <div class = "col-6 pick-right"></div>
+
         <div class="col-6 me" id="me" style="height: 70%; position:relative;">
             <div class="battle-pokemon bot">
                 <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/132.png">
@@ -106,15 +109,6 @@
             let speciesData = await speciesResponse.json();
             let formData = await formResponse.json();
         
-            let frontImg = formData.sprites.front_default;
-            let backImg;
-            try{
-                backImg = formData.sprites.back_default;
-            }
-            catch{
-                backImg = frontImg; //back은 없는 경우도 있음
-            }
-            
             let jpSpecies = speciesData.names.find(i => i.language.name === "ja-Hrkt");
             let name = jpSpecies.name;
             try{
@@ -123,6 +117,18 @@
             }catch(e){
                 console.log('포켓몬 한글이름 없는듯 '+e);
             }
+
+            let frontImg = formData.sprites.front_default;
+            let backImg;
+            if(formData.sprites.back_default != null){
+                backImg = formData.sprites.back_default;
+            }
+            else{
+                console.log(name+'은 back이미지 못찾음');
+                backImg = frontImg; //back은 없는 경우도 있음
+            }
+            
+            
         
             let pokemon ={};
             pokemon.name = name; //이름(한글 우선, 없으면 일본어)
@@ -152,6 +158,7 @@
             pokemon.battleAtk = Math.max(pokemon.attack, pokemon.specialAttack);    //공격 수치 = 공격과 특공 중 높은 쪽
             pokemon.battleDef = pokemon.hp + Math.max(pokemon.defense, pokemon.specialDefense); //내구도 = 체력 + 방특방 중 높은 쪽
             pokemon.battleDefMax = pokemon.battleDef;   //최대값  
+            pokemon.battleDefPercent = 100;
 
             //console.log(pokemon);
             return pokemon;
@@ -166,6 +173,8 @@
         const btnGameScreen = document.querySelector('#game-screen #action-btn-container');
         const myPokemonImg = document.querySelector('#game-screen #me img');
         const opPokemonImg = document.querySelector('#game-screen #op img');
+
+        const battleRulePokemonCount = 2;  // 배틀 규칙에 따른 포켓몬의 개수(확장고려함?)
 
 
         let countdownInterval;
@@ -188,81 +197,75 @@
         let myDeck=[];
         let opDeck=[];
         let battleDeck = [];
+        let selectFlag = false;     //포켓몬 선택 중복제출 방지
         let mySelectedPokemon = [];  //선택한 포켓몬
         let opSelectedPokemon = [];  //상대가 선택한 포켓몬
-        let myFieldPokemon = mySelectedPokemon[0];  //현재 필드에 나와 있는 포켓몬
-        let opFieldPokemon = opSelectedPokemon[0];  
+        let myFieldPokemon;  //현재 필드에 나와 있는 포켓몬
+        let opFieldPokemon; 
+
+        let myDethCount = 0;    //죽은 포켓몬 카운트
+        let opDethCount = 0;
+
         let myFieldPokemonIndex = 0;    //현재 필드에 나와 있는 포켓몬의 내 덱에서의 인덱스 
         let opFieldPokemonIndex = 0;
+
         //필드 포켓몬 전환
         function changeFieldPokemon(side){ 
             if(side=='me'){
-                myFieldPokemonIndex = (myFieldPokemonIndex+1)%2;       
-                myFieldPokemon = mySelectedPokemon[myFieldPokemonIndex];
+                if(myFieldPokemonIndex==0){
+                    mySelectedPokemon[0] = myFieldPokemon;  // 1. 현재 필드 포켓몬의 상태를 덱에도 저장
+                    myFieldPokemonIndex = 1;                // 2. 인덱스 변경
+                    myFieldPokemon = mySelectedPokemon[1];  // 3. 필드 포켓몬 변경
+                }
+                else{
+                    mySelectedPokemon[1] = myFieldPokemon;
+                    myFieldPokemonIndex = 0;
+                    myFieldPokemon = mySelectedPokemon[0];
+                }
+                
             }
             else{
-                opFieldPokemonIndex = (opFieldPokemonIndex+1)%2;       
-                opFieldPokemon = opSelectedPokemon[opFieldPokemonIndex];
+                if(opFieldPokemonIndex==0){
+                    opSelectedPokemon[0] = opFieldPokemon;
+                    opFieldPokemonIndex = 1;
+                    opFieldPokemon = opSelectedPokemon[1];
+                }
+                else{
+                    opSelectedPokemon[1] = opFieldPokemon;
+                    opFieldPokemonIndex = 0;
+                    opFieldPokemon = opSelectedPokemon[0];
+                }
             }
         }
 
-        function clearGameScreen(){
+        function hideGameScreen(){
             /*
             * game-screen 내의 내용물들을 청소
             */
-            myGameScreen.innerHTML = '';
-            opGameScreen.innerHTML = '';
-            messageGameScreen.innerHTML = '';
+            myGameScreen.classList.add('hidden');
+            opGameScreen.classList.add('hidden');
+            messageGameScreen.classList.add('hidden');
             btnGameScreen.classList.add('hidden');
         }
 
         function initGameScreen(){
-            document.querySelector('#game-screen').innerHTML = `
-            <div class="col-6 me" id="me" style="height: 70%; position:relative;">
-                <div class="battle-pokemon bot">
-                    <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/132.png">
-                    <div class="battle-pokemon-info">
-                        <div class="name"></div>
-                        <div class="hp-container">
-                            <div class="hp"></div>
-                            <div class="hp-text"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-6 op" id="op" style="height: 70%; position:relative;">
-                <div class="battle-pokemon top">
-                    <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/132.png">
-                    <div class="battle-pokemon-info">
-                        <div class="name"></div>
-                        <div class="hp-container">
-                            <div class="hp"></div>
-                            <div class="hp-text"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            
+        }
 
-            <div id="message-container"></div>
-            <div class="row hidden" id="action-btn-container">
-                <button class="col-6 action-btn" data-action="typeAttack1">타입공격1</button>
-                <button class="col-6 action-btn" data-action="typeAttack2">타입공격2</button>
-                <button class="col-6 action-btn" data-action="normalAttack">일반공격</button>
-                <button class="col-6 action-btn" data-action="change">교체</button>
-            </div>
-            `
-            //액션버튼에 이벤트 추가
-            document.querySelectorAll('#action-btn-container .action-btn').forEach(button => {
-            button.addEventListener('click', function() {
-                // data-action 속성에 따라 socket.emit 호출
-                const action = this.getAttribute('data-action');    //버튼에 달려있는 속성 추출
-                socket.emit('select-action', { side : side ,action : action });
-                console.log(action+'누름');
-
-                // div 컨테이너에 hidden 클래스를 추가
-                document.getElementById('action-btn-container').classList.add('hidden');
-            });
-        });
+        //포켓몬 hp상태 업데이트 함수 (애니메이션 추가하셈)
+        function updateHpInfo(){
+            document.querySelector('.me .hp-text').textContent = myFieldPokemon.battleDef;
+            document.querySelector('.op .hp-text').textContent = opFieldPokemon.battleDef;
+            document.querySelector('#me .battle-pokemon-info .hp').style.width = `${myFieldPokemon.battleDefPercent}%`;
+            document.querySelector('#op .battle-pokemon-info .hp').style.width = `${opFieldPokemon.battleDefPercent}%`;
+        }
+        function updateMyHpInfo(){
+            document.querySelector('.me .hp-text').textContent = myFieldPokemon.battleDef;
+            document.querySelector('#me .battle-pokemon-info .hp').style.width = `${myFieldPokemon.battleDefPercent}%`;
+        }
+        function updateOpHpInfo(){
+            document.querySelector('.op .hp-text').textContent = opFieldPokemon.battleDef;
+            document.querySelector('#op .battle-pokemon-info .hp').style.width = `${opFieldPokemon.battleDefPercent}%`;
         }
 
         // 이 부분을 모듈화해서 내부 텍스트 요소만 그때그때 바뀌게 해야할듯
@@ -271,13 +274,15 @@
             document.querySelector('#game-screen #me .name').textContent = myFieldPokemon.name;
             document.querySelector('#game-screen #me .hp-container .hp').style.width = 
             `${(myFieldPokemon.battleDef / myFieldPokemon.battleDefMax)*100}%`;
-            document.querySelector('#game-screen #me img').src = myFieldPokemon.frontImg;
+            
+            document.querySelector('#game-screen #me img').src = myFieldPokemon.backImg;
             
             document.querySelector('#game-screen #op .name').textContent = opFieldPokemon.name;
             document.querySelector('#game-screen #op .hp-container .hp').style.width = 
             `${(opFieldPokemon.battleDef / opFieldPokemon.battleDefMax)*100}%`;
             document.querySelector('#game-screen #op img').src = opFieldPokemon.frontImg;
         }
+
         function paintBattlePokemonInfo(){
             document.querySelector('#game-screen #me .name').textContent = myFieldPokemon.name;
             document.querySelector('#game-screen #me .hp-container .hp').style.width = 
@@ -288,6 +293,9 @@
             `${(opFieldPokemon.battleDef / opFieldPokemon.battleDefMax)*100}%`;
         }
 
+        /**
+        *   게임 종료 모달 출력 함수
+        */
         function showResultModal(result){
             const resultModal = document.getElementById('resultModal');
             const resultText = document.getElementById('resultText');
@@ -304,9 +312,9 @@
                 resultModal.classList.remove('hidden');
                 resultModal.classList.add('modal-overlay');
 
-                // 10초 뒤에 메인 페이지로 이동
+                // 10초 뒤에 메인 페이지로 이동 > 함수에 너무 많은 기능이 들어가는것 같으므로 분리해야할듯
                 setTimeout(() => {
-                    window.location.href = '/main'; // 메인 페이지 URL로 변경
+                    window.location.href = '/match'; // 메인 페이지 URL로 변경
                 }, 10000);
         }
     
@@ -319,6 +327,10 @@
             return`<div id=${id}"><img src=${url} style="height:100%"></div>`
         }
 
+        //게임 화면 하단 메시지 컨테이너 메시지 설정 함수
+        function setMessage(message){
+            document.querySelector('#message-container').innerHTML = message;
+        }
         
         const maxSelection = 2;
         let selectedCount = 0;
@@ -355,6 +367,19 @@
             });
             console.log('선택함:', selectedItems);
             document.querySelector('#confirm-button').classList.add('hidden');
+
+            // 타이머를 즉시 멈추고 리스트를 전송
+            clearInterval(battleCountdownInterval);
+            finalizeSelections();
+        }
+        //최종 전송
+        function finalizeSelections() {
+            if(selectFlag)return;   //중복제출 방지
+            selectFlag=true;
+            battleDeck = selectedItems;
+            myDeck = filterListByIndices(myDeck, battleDeck);
+            //console.log(myDeck);
+            socket.emit('select-pokemon', myDeck); // 내 서버소켓에 선택한 포켓몬 리스트 전송
         }
 
         function askStartHandler() {
@@ -395,8 +420,6 @@
                 // data-action 속성에 따라 socket.emit 호출
                 const action = this.getAttribute('data-action');    //버튼에 달려있는 속성 추출
                 socket.emit('select-action', { side : side ,action : action });
-                console.log(action+'누름');
-
                 // div 컨테이너에 hidden 클래스를 추가
                 document.getElementById('action-btn-container').classList.add('hidden');
             });
@@ -404,7 +427,7 @@
 
         //askStart 수신(게임 시작 요청)
         socket.on('askStart',()=>{
-            clearGameScreen();
+            hideGameScreen();
 
             let counter = 6;
             timerSpan.textContent = counter;
@@ -414,7 +437,6 @@
                 console.log('게임 시작까지 :'+counter);
                 if (counter <= -1) {
                     clearInterval(countdownInterval);
-                    socket.emit('startGame');
                     timerSpan.textContent = '게임중';
                     console.log('픽 시작...');
                 } else {
@@ -424,22 +446,20 @@
             
         });
 
+        //배틀에 사용할 포켓몬 선택 단계
         socket.on('battlePhase',()=>{
             let counter = 31;   //픽 제한시간(초)
             timerSpan.textContent = counter;
+            selectFlag=false;
+            myDethCount = 0;
+            opDethCount = 0;
 
             battleCountdownInterval = setInterval(() => {
                 counter -= 1;
-                //console.log('픽 종료까지 :'+counter);
                 if (counter <= -1) {
                     clearInterval(battleCountdownInterval);
-                    socket.emit('startGame');
-                    timerSpan.textContent = '게임중';
-                    battleDeck = selectedItems;
-                    myDeck= filterListByIndices(myDeck, battleDeck);
-                    console.log(myDeck);
-                    socket.emit('select-pokemon',myDeck);    //내 서버소켓에 선택한 포켓몬 리스트 전송
-                    console.log('게임 시작...');
+                    timerSpan.textContent = '대기중...';
+                    finalizeSelections();   //선택 전송
                 } else {
                     timerSpan.textContent = counter;
                 }
@@ -474,20 +494,20 @@
 
             async function renderDeck() {
                 await Promise.all(myDeck.map((data, i) => {
-                    document.querySelector('#game-screen #me').insertAdjacentHTML("beforeend", `
+                    document.querySelector('.pick-left').insertAdjacentHTML("beforeend", `
                         <div style="height:15%; display: flex; align-items: center;">
                             ${makeImgTag(data.frontImg, i)}
                             <input type="checkbox" data-index="${i}" class="selection-checkbox" onchange="handleCheckboxChange(event)">
                         </div>
                     `);
                 }));
-                document.querySelector('#game-screen #me').insertAdjacentHTML("beforeend", `
-                    <button id="confirm-button" onclick="submitSelections()">Submit</button>
+                document.querySelector('.pick-left').insertAdjacentHTML("beforeend", `
+                    <button id="confirm-button" onclick="submitSelections()">선택 완료!</button>
                 `);
             }
             renderDeck();
             await Promise.all(opDeck.map((data,i)=>{
-                document.querySelector('#game-screen #op').insertAdjacentHTML("beforeend",`<div style="height:15%">${makeImgTag(data.frontImg,i)}</div>`);
+                document.querySelector('.pick-right').insertAdjacentHTML("beforeend",`<div style="height:15%">${makeImgTag(data.frontImg,i)}</div>`);
             }))
         })
 
@@ -496,28 +516,40 @@
             if(data.side == side){
                 mySelectedPokemon = data.pokemon;
                 myReadyFlag = true;
-                console.log('내 덱 수신');
             }
             else{
                 opSelectedPokemon = data.pokemon;
                 opReadyFlag = true;
                 console.log('상대 덱 수신');
+                socket.emit('opSelect',{opPokemon:opSelectedPokemon});  //어서 달려가서 내 소켓에도 이 소식을 알리시오
             }
             myFieldPokemon = mySelectedPokemon[0];
             opFieldPokemon = opSelectedPokemon[0];
             if(areBothPlayersReady()==true){    //두명 다 선택을 마치고 기다리고 있는 상태라면 배틀 페이즈 시작 요청
-                socket.emit('opSelect',{opPokemon:opSelectedPokemon});
+                document.querySelector('.pick-left').innerHTML = '';    //픽창 지우기
+                document.querySelector('.pick-right').innerHTML = '';
+                document.querySelector('.pick-left').classList.add('hidden');
+                document.querySelector('.pick-right').classList.add('hidden');
+
+
                 setPlayersNotReady();   //준비 상태 초기화
-                //console.log(mySelectedPokemon+'/'+opSelectedPokemon);
-                clearGameScreen();
+                hideGameScreen();
                 messageGameScreen.textContent = '게임 시작중...'
-                initGameScreen();
+                myGameScreen.classList.remove('hidden');
+                opGameScreen.classList.remove('hidden');
+                messageGameScreen.classList.remove('hidden');
+                btnGameScreen.classList.remove('hidden');
+                //initGameScreen();
                 document.querySelector('.me .name').textContent = mySelectedPokemon[0].name;  //배틀 선봉 초기값 설정
                 document.querySelector('.op .name').textContent = opSelectedPokemon[0].name;
                 document.querySelector('.me .hp-text').textContent = myFieldPokemon.battleDef;
                 document.querySelector('.op .hp-text').textContent = opFieldPokemon.battleDef;
-                paintBattlePokemon();
-                socket.emit('start-turn');
+
+                //게임 시작 이펙트 애니메이션 넣을 자리
+                setTimeout(()=>{
+                    paintBattlePokemon();
+                    socket.emit('start-turn');
+                },3000);    //3초+동안 이펙트 애니메이션 재생 (모달 형식으로 화면 다 가리면서 촤악 하면 멋질듯)
             }
         })
 
@@ -534,21 +566,21 @@
 
             // 30초 카운트다운 시작
             timerInterval = setInterval(() => {
-            counter--;
-            timerSpan.textContent = counter;
+                counter--;
+                timerSpan.textContent = counter;
 
-            if (counter <= 0) {
-                clearInterval(timerInterval);
-                timerSpan.textContent = '통신 대기중...';
+                if (counter <= 0) {
+                    clearInterval(timerInterval);
+                    timerSpan.textContent = '통신 대기중...';
 
-                // 양 플레이어의 액션이 선택되지 않은 경우 기본 액션 발동
-                if (myAction == null) myAction = 'normalAttack';
-                if (opAction == null) opAction = 'normalAttack';
-                socket.emit('send-action', { myAction: myAction, opAction: opAction });
-                myAction = null;
-                opAction = null;
-            }
-        }, 1000);
+                    //플레이어의 액션이 선택되지 않은 경우 기본 액션 발동
+                    if (myAction == null) myAction = 'normalAttack';
+                    if (opAction == null) opAction = 'normalAttack';
+                    socket.emit('send-action', { myAction: myAction, opAction: opAction });
+                    myAction = null;
+                    opAction = null;
+                }
+            }, 1000);
         }
 
         //소켓으로부터 턴 시작 신호 받으면 턴 시작
@@ -563,13 +595,15 @@
         //액션 선택 정보를 수신하고 2명의 액션이 선택되었다면 턴을 종료하고 서버에 결과 계산 요청 전송
         socket.on('send-action',(data)=>{
             if(data.side==side){    //내 사이드와 일치한다면 내 액션
+                if(myAction!=null) return;
                 myAction = data.action;
             }
             else{
+                if(opAction!=null) return;
                 opAction = data.action;
             }
-
-            if(myAction!=null&&opAction!=null){
+            //console.log(myAction+'/'+opAction);
+            if(myAction!=null && opAction!=null){ //내 선택과 상대 선택이 모두 null이 아니라면
                 clearInterval(timerInterval); // 카운트다운 중단
                 socket.emit('send-action',{myAction:myAction,opAction:opAction});
                 myAction=null;
@@ -579,69 +613,208 @@
 
         /**
         * 턴 종료 결과 출력 페이즈
+        * @param {objct} logLine
         */
-        function printLog(logLine){
-            if(logLine=='lose'||logLine=='win'){    //승리나 패배 시 결과 모달 출력
-                showResultModal(logLine);
-            }
-            switch(logLine){    //로그 종류별로 화면 효과 반영(최종적으로는 어차피 소켓에서 온 최종상태 프린트)
-                case 'myChange':
-                {
-                    let prevName = myFieldPokemon.name; //기존 포켓몬 이름
-                    changeFieldPokemon('me');
-                    /**
-                    *   0. 교체 문구를 띄운다
-                    *   1. img 투명도 0으로 만든다.
-                    *   2. src를 바꾼다.
-                    *   3. 투명도를 1로 바꾼다.
-                    *   4. 교체 이름을 띄운다
-                    */
-                    messageGameScreen.textContent = `돌아와! ${prevName}!`; //교체 문구를 띄운다
-                    myPokemonImg.classList.add('faded');        //투명화
-                    //1초 텀
-                    setTimeout(() => {
-                        myPokemonImg.src = myFieldPokemon.backImg;  // 이미지 교체
-                        myPokemonImg.classList.remove('faded');     // 투명도 제거
-                        messageGameScreen.textContent = `힘내! ${myFieldPokemon.name}!`; // 교체 이름을 띄운다
-                    }, 1000); //1초
+        function printLog(logLine) {
+            return new Promise((resolve) => {
+                let action = logLine.action;
+                if (action == 'lose' || action == 'win') {    // 승리나 패배 시 결과 모달 출력
+                    showResultModal(action);
+                    resolve();  // 승리나 패배 시 즉시 resolve
                 }
-                case 'opChange':
-                {
-                    let prevName = opFieldPokemon.name; //기존 포켓몬 이름
-                    changeFieldPokemon('op');
-                    /**
-                    *   0. 교체 문구를 띄운다
-                    *   1. img 투명도 0으로 만든다.
-                    *   2. src를 바꾼다.
-                    *   3. 투명도를 1로 바꾼다.
-                    *   4. 교체 이름을 띄운다
-                    */
-                    messageGameScreen.textContent = `상대는 ${prevName}를 넣었다!`; //교체 문구를 띄운다
-                    myPokemonImg.classList.add('faded');        //투명화
-                    //1초 텀
-                    setTimeout(() => {
-                        myPokemonImg.src = myFieldPokemon.backImg;  // 이미지 교체
-                        myPokemonImg.classList.remove('faded');     // 투명도 제거
-                        messageGameScreen.textContent = `상대는 ${myFieldPokemon.name}를 내보냈다!`; // 교체 이름을 띄운다
-                    }, 1000); //1초
+                switch (action) {    // 로그 종류별로 화면 효과 반영
+                    case 'myChange': {
+                        let prevName = myFieldPokemon.name; // 기존 포켓몬 이름
+                        changeFieldPokemon('me');
+                        /**
+                        *   0. 교체 문구를 띄운다
+                        *   1. img 투명도 0으로 만든다.
+                        *   2. src를 바꾼다.
+                        *   3. 투명도를 1로 바꾼다.
+                        *   4. 교체 이름을 띄운다
+                        */
+                        messageGameScreen.textContent = `돌아와! ${prevName}!`; // 교체 문구를 띄운다
+                        myPokemonImg.classList.add('faded');        // 투명화
+                        setTimeout(() => {
+                            myPokemonImg.src = myFieldPokemon.backImg;  // 이미지 교체
+                            myPokemonImg.classList.remove('faded');     // 투명도 제거
+                            messageGameScreen.textContent = `힘내! ${myFieldPokemon.name}!`; // 교체 이름을 띄운다
+                            resolve();  // 작업 완료 후 resolve 호출
+                        }, 1000); // 1초
+                        break;
+                    }
+                    case 'opChange': {
+                        let prevName = opFieldPokemon.name; // 기존 포켓몬 이름
+                        changeFieldPokemon('op');
+                        messageGameScreen.textContent = `상대는 ${prevName}를 넣었다!`; // 교체 문구를 띄운다
+                        myPokemonImg.classList.add('faded');        // 투명화
+                        setTimeout(() => {
+                            opPokemonImg.src = opFieldPokemon.backImg;  // 이미지 교체
+                            opPokemonImg.classList.remove('faded');     // 투명도 제거
+                            messageGameScreen.textContent = `상대는 ${opFieldPokemon.name}를 내보냈다!`; // 교체 이름을 띄운다
+                            resolve();  // 작업 완료 후 resolve 호출
+                        }, 1000); // 1초
+                        break;
+                    }
+                    case 'myAction': {
+                        let atkType;
+                        if (logLine.detail == 'typeAttack1') atkType = myFieldPokemon.types[0];
+                        else if (logLine.detail == 'typeAttack2') atkType = myFieldPokemon.types[1];
+                        else atkType = '일반';
+                        
+
+                        console.log(`${myFieldPokemon.name}의 ${atkType}공격!`);
+                        document.querySelector('#message-container').innerHTML = `${myFieldPokemon.name}의 ${atkType}공격!`;
+                        
+                        // 여기에 기술 이펙트 추가
+        
+                        // hp바 조정
+                        updateOpHpInfo();   //상대 체력 조정
+                        
+                        //console.log(`${opFieldPokemon.name} 체력 : ${opFieldPokemon.battleDefPercent}%`);
+                        setTimeout(() => {
+                            if(logLine.effect =='super'){
+                                messageGameScreen.textContent = `효과가 굉장했다!`;
+                            }
+                            else if(logLine.effect =='weak'){
+                                messageGameScreen.textContent = `효과가 별로인 듯 하다...`;
+                            }
+                            else if(logLine.effect =='invalid'){
+                                messageGameScreen.textContent = `효과가 없는 것 같다...`;
+                            }
+                            else{
+                                messageGameScreen.textContent = ``; // 효과가 굉장 or 별로 or 스킵
+                            }
+                            resolve();  // 작업 완료 후 resolve 호출
+                        }, 2000);
+
+                        break;
+                    }
+                    case 'opAction': {
+                        let atkType;
+                        if (logLine.detail == 'typeAttack1') atkType = opFieldPokemon.types[0];
+                        else if (logLine.detail == 'typeAttack2') atkType = opFieldPokemon.types[1];
+                        else atkType = '일반';
+                        console.log(`${opFieldPokemon.name}의 ${atkType}공격!${logLine.effect}`);
+                        document.querySelector('#message-container').innerHTML = `${opFieldPokemon.name}의 ${atkType}공격!`;
+                        
+                        // 여기에 기술 이펙트 추가
+        
+                        // hp바 조정
+                        updateMyHpInfo();   //내 체력 조정
+                        
+                        
+                        //console.log(`${myFieldPokemon.name} 체력: ${myFieldPokemon.battleDefPercent}%`);
+                        setTimeout(() => {
+                            if(logLine.effect =='super'){
+                                messageGameScreen.textContent = `효과가 굉장했다!`;
+                            }
+                            else if(logLine.effect =='weak'){
+                                messageGameScreen.textContent = `효과가 별로인 듯 하다...`;
+                            }
+                            else if(logLine.effect =='invalid'){
+                                messageGameScreen.textContent = `효과가 없는 것 같다...`;
+                            }
+                            else{
+                                messageGameScreen.textContent = ``; // 효과가 굉장 or 별로 or 스킵
+                            }
+                            resolve();  // 작업 완료 후 resolve 호출
+                        }, 2000);
+                        break;
+                    }
+                    case 'myDead': {
+                        // 첫 번째 메시지 출력 및 투명도를 0으로 설정
+                        setMessage(`${myFieldPokemon.name}은 쓰러졌다...`);
+                        myPokemonImg.style.opacity = '0'; // 완전히 투명하게 설정
+
+                        myDethCount++;
+                        changeFieldPokemon('me');
+
+                        if(myDethCount==battleRulePokemonCount){    //데스카운트가 게임규칙에 정해둔 수만큼 올랐다면
+                            resolve();  //이후는 프린트 안하고 스킵
+                        }
+                        else{
+                            // 1초 후에 이미지 교체(애니메이션 출력시간)
+                            setTimeout(()=>{
+                                myPokemonImg.src = myFieldPokemon.backImg;  // 이미지 교체
+                            },1000);
+                            //두 번째 메시지 출력 및 투명도 100%로 설정
+                            setTimeout(() => {
+                                setMessage(`가라! ${myFieldPokemon.name}`);
+                                myPokemonImg.style.opacity = '1'; // 완전히 불투명하게 설정
+                                setTimeout(() => {
+                                    resolve();
+                                }, 2000); 
+                            }, 2000); 
+                        }
+                        break;
+                    }
+                    case 'opDead': {
+                        // 첫 번째 메시지 출력 및 투명도를 0으로 설정
+                        setMessage(`${opFieldPokemon.name}은 쓰러졌다!`);
+                        opPokemonImg.style.opacity = '0'; // 완전히 투명하게 설정
+
+                        opDethCount++;
+                        changeFieldPokemon('op');
+
+                        if(opDethCount==battleRulePokemonCount){    //데스카운트가 게임규칙에 정해둔 수만큼 올랐다면
+                            resolve();  //이후 프린트 안하고 스킵
+                        }
+                        else{
+                            // 1초 후에 이미지 교체(애니메이션 출력시간)
+                            setTimeout(()=>{
+                                opPokemonImg.src = opFieldPokemon.frontImg;  // 이미지 교체
+                            },1000);
+                            // 2초 기다렸다가 두 번째 메시지 출력 및 투명도 100%로 설정
+                            setTimeout(() => {
+                                setMessage(`상대는 ${opFieldPokemon.name}를 내보냈다!`);
+                                opPokemonImg.style.opacity = '1'; // 완전히 불투명하게 설정
+                                setTimeout(() => {
+                                    resolve();
+                                }, 2000); 
+                            }, 2000);
+                        }
+                        
+                        break;
+                    }
+                    default: {
+                        resolve();  // 예기치 않은 action은 바로 resolve
+                        break;
+                    }
                 }
-                case 'myAction':
-                case 'opAction':
-                case 'myDead' :
-                case 'opDead' :
-            }
-            socket.emit('end-print');
+            });
         }
-        socket.on('end-turn',(log)=>{
-            log.forEach(logLine=>{
-                printLog(logLine);
-            })
-        })
+        
+        socket.on('end-turn', async (data) => {
+            let log = data.log;
+            //console.log(data.log);
+            mySelectedPokemon[0].battleDef = data.myPokemon[0].battleDef; // 지금은 def만 변경요소지만 추후 랭크업 다운 구현시 다른 요소도 추가 가능
+            opSelectedPokemon[0].battleDef = data.opPokemon[0].battleDef;
+            mySelectedPokemon[0].battleDefPercent = data.myPokemon[0].battleDefPercent;
+            opSelectedPokemon[0].battleDefPercent = data.opPokemon[0].battleDefPercent;
+            mySelectedPokemon[1].battleDef = data.myPokemon[1].battleDef; // 지금은 def만 변경요소지만 추후 랭크업 다운 구현시 다른 요소도 추가 가능
+            opSelectedPokemon[1].battleDef = data.opPokemon[1].battleDef;
+            mySelectedPokemon[1].battleDefPercent = data.myPokemon[1].battleDefPercent;
+            opSelectedPokemon[1].battleDefPercent = data.opPokemon[1].battleDefPercent;
+            //myFieldPokemon = mySelectedPokemon[0];
+            //opFieldPokemon = opSelectedPokemon[0];
+            for (let logLine of log) {
+                console.log(logLine);
+                await printLog(logLine); // printLog가 완료될 때까지 대기
+                await new Promise(resolve => setTimeout(resolve, 1500)); // 이후에도 1초씩 간격
+            }
+            console.log(myFieldPokemon.name+':'+myFieldPokemon.battleDefPercent+'%');
+            timerSpan.textContent = '통신 대기중...';
+
+            updateHpInfo();
+            setMessage('통신 대기중...');
+
+            socket.emit('end-print');
+        });
 
         //특정 플레이어가 출력을 마치고 다음 턴 시작 대기중
         socket.on('end-print',(data)=>{
-            timerSpan.textContent = '통신 대기중...';
-
+            
             if(data.side == side){
                 myReadyFlag = true;
             }
@@ -692,6 +865,17 @@
                 document.querySelector('.msg-box').insertAdjacentHTML('beforeend', `<div class="chat-box text-end"><span>${data.msg}</span></div>`) 
             }
         })
+
+        //액션버튼에 이벤트 추가
+        document.querySelectorAll('#action-btn-container .action-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                // data-action 속성에 따라 socket.emit 호출
+                const action = this.getAttribute('data-action');    //버튼에 달려있는 속성 추출
+                socket.emit('select-action', { side : side ,action : action });
+                // div 컨테이너에 hidden 클래스를 추가
+                document.getElementById('action-btn-container').classList.add('hidden');
+            });
+        });
     </script>
 </body>
 </html>

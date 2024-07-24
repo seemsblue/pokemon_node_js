@@ -46,10 +46,11 @@ async function getPokemonInfoById(id){
 
     let frontImg = formData.sprites.front_default;
     let backImg;
-    try{
+    if(formData.sprites.back_default != null){
         backImg = formData.sprites.back_default;
     }
-    catch{
+    else{
+        console.log(name+'은 back이미지 못찾음');
         backImg = frontImg; //back은 없는 경우도 있음
     }
     
@@ -67,6 +68,7 @@ async function getPokemonInfoById(id){
     pokemon.id = id;    //도감코드
     pokemon.types = data.types.map(typeInfo => typeInfo.type.name); //타입
     pokemon.frontImg = frontImg;
+    pokemon.backImg = backImg;
     pokemon.stats = data.stats; // hp atk def satk sdef spd 순
     pokemon.hp = data.stats[0].base_stat;
     pokemon.attack = data.stats[1].base_stat;
@@ -87,7 +89,7 @@ async function getPokemonInfoById(id){
     pokemon.battleAtk = Math.max(pokemon.attack, pokemon.specialAttack);    //공격 수치 = 공격과 특공 중 높은 쪽
     pokemon.battleDef = pokemon.hp + Math.max(pokemon.defense, pokemon.specialDefense); //내구도 = 체력 + 방특방 중 높은 쪽
     pokemon.battleDefMax = pokemon.battleDef;   //최대값  
-
+    pokemon.battleDefPercent = 100; //남은 체력의 백분율
 
     console.log(pokemon);
     return pokemon;
@@ -353,6 +355,13 @@ router.get('/battle/:code',checkAuth,async(req,res)=>{
     res.render('battle/battle.ejs',{session:session,side:side,home:currentUser});
 });
 
+/**
+* indices 안에 없는 인덱스의 list 요소는 삭제한 리스트 리턴(선택한 포켓몬만 남김)
+*/
+function filterListByIndices(list, indices) {   
+    return list.filter((item, index) => indices.includes(index));
+}
+
 //  !!소켓 진행 흐름은 그림 참조
 io.on('connection', async(socket) => {   //접속 할때마다 유저에게 고유한 소켓 객체가 제공
     const session = socket.request.session;
@@ -372,6 +381,9 @@ io.on('connection', async(socket) => {   //접속 할때마다 유저에게 고�
 
     let myDethCount = 0;    //먼저 2가 되면 패배
     let opDethCount = 0;
+
+    let canSelectAction = true;
+
     let endFlag = false;
 
     //0 - 접속 이벤트
@@ -422,6 +434,7 @@ io.on('connection', async(socket) => {   //접속 할때마다 유저에게 고�
 
     let startGameTimeout;
     socket.on('askStart',async(data)=>{
+        status='play';
         console.log(roomCode+'방에서 askStart');
         io.to(roomCode).emit('askStart');
         await db.collection('battle_sessions').updateOne(
@@ -440,31 +453,28 @@ io.on('connection', async(socket) => {   //접속 할때마다 유저에게 고�
         startGameTimeout = setTimeout(() => {   //5초 뒤에 startGame 전송/ 도중에 leave요청시 중단
             io.to(roomCode).emit('startGame');
             console.log(`${roomCode}방 게임 시작!`);
-            status='play';
+            
             
             io.to(roomCode).emit('setDeck',{homeDeck:homeDeck, awayDeck:awayDeck});
             io.to(roomCode).emit('battlePhase');    
 
-            setTimeout(() => {
-                console.log(`${roomCode}방 배틀 페이즈 시작!`);
-            }, 31000);
         }, 7000);
     })
-    /**
-     * 포켓몬 선택 슈신
-     */
+    
+    //내 포켓몬 선택 수신
     socket.on('select-pokemon',async(data)=>{
         myBattlePokemon=data;
         io.to(roomCode).emit('select-pokemon',{side:side,pokemon:myBattlePokemon});
-        console.log(myBattlePokemon);
+        //console.log(myBattlePokemon);
     })
-
-    //상대 선택 덱 수신
+    //상대 선택 포켓몬 수신
     socket.on('opSelect',(data)=>{
         opBattlePokemon = data.opPokemon;
+        console.log(data.opPokemon);
     })
 
-    //배틀 턴 시작 수신
+
+    //턴 시작 요청 수신
     socket.on('start-turn',(data)=>{
         /**
          * 여기에 배틀 결과 계산하는 과정이 전에 있어야 함
@@ -472,31 +482,68 @@ io.on('connection', async(socket) => {   //접속 할때마다 유저에게 고�
 
         //매 턴 계산된 필드의 결과를 전달
 
-        console.log('emit [start-turn]');
+        //console.log('emit [start-turn]');
+        //console.log(myId);
         myFieldPokemon = myBattlePokemon[myFieldPokemonIndex];
         opFieldPokemon = opBattlePokemon[opFieldPokemonIndex];
+        
         io.to(myId).emit('start-turn',{me:myBattlePokemon[myFieldPokemonIndex],op:opBattlePokemon[opFieldPokemonIndex]});
     })
 
     //액션 수신 > 액션 전달
     socket.on('select-action',async(data)=>{
-        action = data.action;
-        io.to(roomCode).emit('send-action',{side:data.side,action:action});   //어떤 사이드의 유저가 어떤 액션을 선택했는지 전송
+        if(canSelectAction){
+            action = data.action;
+            io.to(roomCode).emit('send-action',{side:data.side,action:action});   //어떤 사이드의 유저가 어떤 액션을 선택했는지 전송
+            canSelectAction = false;
+        }
     })
 
+    //side의 필드 포켓몬 교체
+    function changeFieldPokemon(side){   
+        if(side == 'me'){
+            myBattlePokemon[myFieldPokemonIndex] = myFieldPokemon;  //먼저 필드에 있던 포켓몬의 변화값을 덱에 저장
+            myFieldPokemonIndex++;
+            myFieldPokemonIndex = myFieldPokemonIndex%2;
+            myFieldPokemon = myBattlePokemon[myFieldPokemonIndex];
+        }
+        else{
+            opBattlePokemon[opFieldPokemonIndex] = opFieldPokemon;  //먼저 필드에 있던 포켓몬의 변화값을 덱에 저장
+            opFieldPokemonIndex++;
+            opFieldPokemonIndex = opFieldPokemonIndex%2;
+            opFieldPokemon = opBattlePokemon[opFieldPokemonIndex];
+        }
+    }
     
     function battleAction(myAction,opAction){  //우선도와 스피드에 따라 어느쪽이 먼저 행동할지 모르기 때문에 함수로 분리해서 사용
         let log = [];
+        let effect; //효과 배율 참조
         //여기에 교체, 항복 추가
-        if(myAction=='change'&&myDethCount<1){ //내 포켓몬 교체
-            myFieldPokemonIndex++;
-            myFieldPokemonIndex = myFieldPokemonIndex%2;
-            log.push('myChange')
+
+        //교체
+        if(myAction=='change'&&opAction=='change'){ //둘 다 교체라면 스피드 빠른쪽 먼저 교체
+            if (myBattlePokemon[myFieldPokemonIndex].speed > opBattlePokemon[opFieldPokemonIndex].speed){   //내가 더 빠름
+                changeFieldPokemon('me');
+                log.push({action:'myChange'});
+
+                changeFieldPokemon('op');
+                log.push({action:'opChange'});
+            }
+            else{
+                changeFieldPokemon('op');
+                log.push({action:'opChange'});
+
+                changeFieldPokemon('me');
+                log.push({action:'myChange'});
+            }
         }
-        if(opAction=='change'&&opDethCount<1){ //상대 포켓몬 교체
-            opFieldPokemonIndex++;
-            opFieldPokemonIndex = opFieldPokemonIndex%2;
-            log.push('opChange')
+        else if(myAction=='change'&&myDethCount<1){ //내 포켓몬 교체
+            changeFieldPokemon('me');
+            log.push({action:'myChange'});
+        }
+        else if(opAction=='change'&&opDethCount<1){ //상대 포켓몬 교체
+            changeFieldPokemon('op');
+            log.push({action:'opChange'});
         }
 
         if (myBattlePokemon[myFieldPokemonIndex].speed > opBattlePokemon[opFieldPokemonIndex].speed){ 
@@ -504,15 +551,15 @@ io.on('connection', async(socket) => {   //접속 할때마다 유저에게 고�
 
             //내 기술 시전
             if(myAction!='change'&&myAction!='surrender'){
-                attackAction(myAction,'my');
-                log.push('myAction');
+                effect = attackAction(myAction,'my');
+                log.push({action:'myAction',detail:myAction, effect:effect});
                 if(opBattlePokemon[opFieldPokemonIndex].battleDef<=0){   //상대 포켓몬 죽으면?
                     opDethCount++;
-                    opFieldPokemonIndex++;
-                    opFieldPokemonIndex = opFieldPokemonIndex%2;  //데스카운트 추가하고 교체
-                    log.push('opDead');
+                    changeFieldPokemon('op');
+                    log.push({action:'opDead'});
+
                     if(opDethCount==2){ //상대 포켓몬 전멸시
-                        log.push('win')
+                        log.push({action:'win'})
                     }
                     
                     return log; //죽으면 턴 끝
@@ -520,35 +567,32 @@ io.on('connection', async(socket) => {   //접속 할때마다 유저에게 고�
             }
             //이후 상대 기술 시전
             if(opAction!='change'&&opAction!='surrender'){
-                attackAction(opAction,'op');
-                log.push('opAction');
+                effect = attackAction(opAction,'op');
+                log.push({action:'opAction',detail:opAction, effect:effect});
                 if(myBattlePokemon[myFieldPokemonIndex].battleDef<=0){   //내 포켓몬 죽으면?
                     myDethCount++;
-                    myFieldPokemonIndex++;
-                    myFieldPokemonIndex = myFieldPokemonIndex%2;  //데스카운트 추가하고 교체
-                    log.push('myDead');
+                    changeFieldPokemon('me');
+                    log.push({action:'myDead'});
                     if(myDethCount==2){ //내 포켓몬 전멸시
-                        log.push('lose')
+                        log.push({action:'lose'})
                     }
                     
                     return log;
                 }
             }
+            
         }
-        else{   
-            //상대가 더 빠를 때
-
+        else{   //상대가 더 빠를 때
             //상대 기술 시전
             if(opAction!='change'&&opAction!='surrender'){
-                attackAction(opAction,'op');
-                log.push('opAction');
+                effect = attackAction(opAction,'op');
+                log.push({action:'opAction',detail:opAction,effect:effect});
                 if(myBattlePokemon[myFieldPokemonIndex].battleDef<=0){   //내 포켓몬 죽으면?
                     myDethCount++;
-                    myFieldPokemonIndex++;
-                    myFieldPokemonIndex = myFieldPokemonIndex%2;  //데스카운트 추가하고 교체
-                    log.push('myDead');
+                    changeFieldPokemon('me');
+                    log.push({action:'myDead'});
                     if(myDethCount==2){ //내 포켓몬 전멸시
-                        log.push('lose');
+                        log.push({action:'lose'});
                         status = 'lose';
                     }
                     
@@ -557,15 +601,14 @@ io.on('connection', async(socket) => {   //접속 할때마다 유저에게 고�
             }
             //이후 내 기술 시전
             if(myAction!='change'&&myAction!='surrender'){
-                attackAction(myAction,'my');
-                log.push('myAction');
+                effect = attackAction(myAction,'my');
+                log.push({action:'myAction',detail:myAction,effect:effect});
                 if(opBattlePokemon[opFieldPokemonIndex].battleDef<=0){   //상대 포켓몬 죽으면?
                     opDethCount++; 
-                    opFieldPokemonIndex++;
-                    opFieldPokemonIndex = opFieldPokemonIndex%2;  //데스카운트 추가하고 교체
-                    log.push('opDead');
+                    changeFieldPokemon('op');
+                    log.push({action:'opDead'});
                     if(opDethCount==2){ //상대 포켓몬 전멸시
-                        log.push('win');
+                        log.push({action:'win'});
                         status = 'win';
                     }
                     
@@ -573,59 +616,119 @@ io.on('connection', async(socket) => {   //접속 할때마다 유저에게 고�
                 }
             }
         }
+        
         return log;
     }
-    //공격 액션 결과 계산 > hp 등 상태변화 반영 함수
-    function attackAction(action,side){
 
+    /**
+     * 공격 액션 결과 계산 > hp 등 상태변화 반영 함수
+     * @returns {String} - 액션의 효과 (super,normal,weak,invalid)
+     */
+    function attackAction(action,owner){
+        let effect = 'normal';  //기본값 normal
+        let baeyul;    //몇배로 데미지가 적용되는지
+        let damage;
         switch(action){
             case 'typeAttack1':{
-                if(side == 'my'){  //내 공격
-                    let damage = Math.floor(
-                    myFieldPokemon.battleAtk * typeMatchByPokemon(myFieldPokemon.types[0],opFieldPokemon));
+                if(owner == 'my'){  //내 공격
+                    baeyul = typeMatchByPokemon(myFieldPokemon.types[0],opFieldPokemon)
+                    if(baeyul>1){           //(약점 공격)
+                        effect = 'super';
+                    }
+                    else if(baeyul == 0){   //(무효타입 공격)
+                        effect = 'invalid';
+                    }
+                    else if(baeyul < 1){    //(내성타입 공격)
+                        effect = 'weak';
+                    }
+
+                    damage = Math.floor(myFieldPokemon.battleAtk * baeyul);
                     
                     opFieldPokemon.battleDef -= damage;   
                 }
                 else{               //상대 공격
-                    let damage = Math.floor(   
-                        opFieldPokemon.battleAtk * typeMatchByPokemon(opFieldPokemon.types[0],myFieldPokemon));
-                    
-                    myFieldPokemon.battleDef -= damage;   
+                    baeyul = typeMatchByPokemon(opFieldPokemon.types[0],myFieldPokemon)
+                    if(baeyul>1){           //(약점 공격)
+                        effect = 'super';
+                    }
+                    else if(baeyul == 0){   //(무효타입 공격)
+                        effect = 'invalid';
+                    }
+                    else if(baeyul < 1){    //(내성타입 공격)
+                        effect = 'weak';
+                    }
+
+                    damage = Math.floor(opFieldPokemon.battleAtk * baeyul);
+
+                    myFieldPokemon.battleDef -= damage;
                 }
                 break;
             }
             case 'typeAttack2':{
-                if(side == 'my'){
-                    let damage = Math.floor(
-                        myFieldPokemon.battleAtk * typeMatchByPokemon(myFieldPokemon.types[1],opFieldPokemon));
+                if (myFieldPokemon.types[1]== undefined) myFieldPokemon.types[1]=myFieldPokemon.types[0];   //2번째 타입 없는데 강제요청시 예외처리
+                if (opFieldPokemon.types[1]== undefined) opFieldPokemon.types[1]=opFieldPokemon.types[0];
+
+                if(owner == 'my'){
+                    baeyul = typeMatchByPokemon(myFieldPokemon.types[1],opFieldPokemon)
+                    if(baeyul>1){           //(약점 공격)
+                        effect = 'super';
+                    }
+                    else if(baeyul == 0){   //(무효타입 공격)
+                        effect = 'invalid';
+                    }
+                    else if(baeyul < 1){    //(내성타입 공격)
+                        effect = 'weak';
+                    }
                     
-                        opFieldPokemon.battleDef -= damage;   
+                    damage = Math.floor(myFieldPokemon.battleAtk * baeyul);
+
+                    opFieldPokemon.battleDef -= damage;   
                 }
                 else{
-                    let damage = Math.floor(
-                        opFieldPokemon.battleAtk * typeMatchByPokemon(opFieldPokemon.types[1],myFieldPokemon));
-                    
+                    baeyul = typeMatchByPokemon(opFieldPokemon.types[1],myFieldPokemon)
+                    if(baeyul>1){           //(약점 공격)
+                        effect = 'super';
+                    }
+                    else if(baeyul == 0){   //(무효타입 공격)
+                        effect = 'invalid';
+                    }
+                    else if(baeyul < 1){    //(내성타입 공격)
+                        effect = 'weak';
+                    }
+
+                    damage = Math.floor(opFieldPokemon.battleAtk * baeyul);
+
                     myFieldPokemon.battleDef -= damage;   
                 }
                 break;
             }
             case 'normalAttack':{
-                if(side == 'my'){  
-                    let damage = Math.floor(myFieldPokemon.battleAtk*0.8);
+                if(owner == 'my'){  
+                    damage = Math.floor(myFieldPokemon.battleAtk*0.8);
                     
                     opFieldPokemon.battleDef -= damage;   
                 }
                 else{
-                    let damage = Math.floor(opFieldPokemon.battleAtk*0.8);
+                    damage = Math.floor(opFieldPokemon.battleAtk*0.8);
                     
                     myFieldPokemon.battleDef -= damage;   
                 }
                 break;
             }
             default : 
-                console.log('잘못된 배틀 명령:'+side+'의 '+action);
+                console.log('잘못된 배틀 명령:'+owner+'의 '+action);
                 break;
         }
+        myFieldPokemon.battleDefPercent = Math.floor(100*(myFieldPokemon.battleDef / myFieldPokemon.battleDefMax));
+        opFieldPokemon.battleDefPercent = Math.floor(100*(opFieldPokemon.battleDef / opFieldPokemon.battleDefMax));
+        if(myFieldPokemon.battleDefPercent<=0) {myFieldPokemon.battleDefPercent=0; myFieldPokemon.battleDef=0;}   //0퍼센트 미만일 경우 0으로 수치조정 
+        if(opFieldPokemon.battleDefPercent<=0) {opFieldPokemon.battleDefPercent=0; opFieldPokemon.battleDef=0;}
+
+
+        myBattlePokemon[myFieldPokemonIndex] = myFieldPokemon;  //변경수치 반영
+        opBattlePokemon[opFieldPokemonIndex] = opFieldPokemon;
+        //console.log(`${owner}가 ${damage}데미지 입힘!`)
+        return effect;
     }
 
     //턴 종료 수신 > 결과 계산 후 전달
@@ -637,8 +740,16 @@ io.on('connection', async(socket) => {   //접속 할때마다 유저에게 고�
         //액션 결과 계산
         //로그랑 포켓몬 남은 체력 등등 도 전달해줘야 할듯
         //필요없는 부분은 짤라서 전달해서 통신 데이터 양 줄이기
+        console.log(`${side}/${myBattlePokemon[0].name}:${myBattlePokemon[0].battleDefPercent}%|${myBattlePokemon[1].name}:${myBattlePokemon[1].battleDefPercent}% &
+            ${opBattlePokemon[0].name}:${opBattlePokemon[0].battleDefPercent}%|${opBattlePokemon[1].name}:${opBattlePokemon[1].battleDefPercent}%`)
         io.to(myId).emit('end-turn',{log:log,myPokemon:myBattlePokemon,opPokemon:opBattlePokemon});
 
+    })
+
+    //액션 결과 프린트 종료 수신 > 새로운 턴 시작 전달
+    socket.on('end-print',async(data)=>{
+        canSelectAction = true;
+        io.to(roomCode).emit('end-print',{side:side});
     })
 
 
@@ -657,7 +768,7 @@ io.on('connection', async(socket) => {   //접속 할때마다 유저에게 고�
             }
         }
         clearTimeout(startGameTimeout); // 예약된 startGame 있으면 취소
-        console.log(`${roomCode}방 게임 시작 취소됨...(away 연결 끊김)`);
+        //console.log(`${roomCode}방 게임 시작 취소됨...(away 연결 끊김)`);
     })
 
     socket.on('disconnect', async() => {
@@ -683,11 +794,9 @@ io.on('connection', async(socket) => {   //접속 할때마다 유저에게 고�
         }
         else if(status=='win'){
             updatePoint(1);
-            console.log('이김');
         }
         else if(status=='lose'){
             updatePoint(-1);
-            console.log('짐');
         }
     })
 });
