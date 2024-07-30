@@ -6,10 +6,6 @@
     display: none;
 }
 
-.action-btn {
-    padding: 2px;
-    height: 80px;
-}
 
 .battle-pokemon {
     height: 200px;
@@ -102,4 +98,192 @@
     text-align: center;
     padding: 2rem;
     background-color: blue;
+}
+
+/* 액션버튼 스타일 부분 */
+
+/*왼쪽 강제 테두리좀 줌*/
+#action-btn-container { 
+    padding-left: 27px; /* 필요에 따라 패딩 값을 조절 */
+}
+
+.action-btn {
+    padding: 4px;
+    height: 80px;
+    font-size: 1em;
+    font-weight: bold;
+    text-align: center;
+    margin: 3px;
+    border-radius: 5px;
+    cursor: pointer;
+
+    transition: all 0.3s ease-in-out;
+}
+
+
+/* Normal Type */
+.atk-btn.type-normal {
+    background-color: #A8A878;
+    color: white;
+    border: 2px solid #6D6D4E;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+}
+
+/* Fire Type */
+.atk-btn.type-fire {
+    background: linear-gradient(135deg, #F08030, #F8D030);
+    color: white;
+    border: 2px solid #9C531F;
+    box-shadow: 0 4px 6px rgba(255, 69, 0, 0.4);
+}
+
+/* Water Type */
+.atk-btn.type-water {
+    background: linear-gradient(135deg, #6890F0, #98D8D8);
+    color: white;
+    border: 2px solid #445E9C;
+    box-shadow: 0 4px 6px rgba(30, 144, 255, 0.4);
+}
+
+/* Grass Type */
+.atk-btn.type-grass {
+    background: linear-gradient(135deg, #78C850, #A7DB8D);
+    color: white;
+    border: 2px solid #4E8234;
+    box-shadow: 0 4px 6px rgba(34, 139, 34, 0.4);
+}
+
+/* Electric Type */
+.atk-btn.type-electric {
+    background: linear-gradient(135deg, #F8D030, #FAE078);
+    color: white;
+    border: 2px solid #A1871F;
+    box-shadow: 0 4px 6px rgba(255, 255, 0, 0.4);
+}
+
+/* Ice Type */
+.atk-btn.type-ice {
+    background: linear-gradient(135deg, #98D8D8, #D0F8E8);
+    color: white;
+    border: 2px solid #638D8D;
+    box-shadow: 0 4px 6px rgba(135, 206, 235, 0.4);
+}
+
+/* Fighting Type */
+.atk-btn.type-fighting {
+    background: linear-gradient(135deg, #C03028, #D67873);
+    color: white;
+    border: 2px solid #7D1F1A;
+    box-shadow: 0 4px 6px rgba(178, 34, 34, 0.4);
+}
+
+/* Poison Type */
+.atk-btn.type-poison {
+    background: linear-gradient(135deg, #A040A0, #C183C1);
+    color: white;
+    border: 2px solid #682A68;
+    box-shadow: 0 4px 6px rgba(148, 0, 211, 0.4);
+}
+
+/* Ground Type */
+.atk-btn.type-ground {
+    background: linear-gradient(135deg, #E0C068, #F8E078);
+    color: white;
+    border: 2px solid #927D44;
+    box-shadow: 0 4px 6px rgba(160, 82, 45, 0.4);
+}
+
+/* Flying Type */
+.atk-btn.type-flying {
+    background: linear-gradient(135deg, #A890F0, #C6B7F5);
+    color: white;
+    border: 2px solid #6D5E9C;
+    box-shadow: 0 4px 6px rgba(135, 206, 235, 0.4);
+}
+
+/* Psychic Type */
+.atk-btn.type-psychic {
+    background: linear-gradient(135deg, #F85888, #FA92B2);
+    color: white;
+    border: 2px solid #A13959;
+    box-shadow: 0 4px 6px rgba(255, 20, 147, 0.4);
+}
+
+/* Bug Type */
+.atk-btn.type-bug {
+    background: linear-gradient(135deg, #A8B820, #C6D16E);
+    color: white;
+    border: 2px solid #6D7815;
+    box-shadow: 0 4px 6px rgba(154, 205, 50, 0.4);
+}
+
+/* Rock Type */
+.atk-btn.type-rock {
+    background: linear-gradient(135deg, #B8A038, #D1C17D);
+    color: white;
+    border: 2px solid #786824;
+    box-shadow: 0 4px 6px rgba(139, 69, 19, 0.4);
+}
+
+/* Ghost Type */
+.atk-btn.type-ghost {
+    background: linear-gradient(135deg, #705898, #A292BC);
+    color: white;
+    border: 2px solid #493963;
+    box-shadow: 0 4px 6px rgba(75, 0, 130, 0.4);
+}
+
+/* Dragon Type */
+.atk-btn.type-dragon {
+    background: linear-gradient(135deg, #7038F8, #A27DFA);
+    color: white;
+    border: 2px solid #4924A1;
+    box-shadow: 0 4px 6px rgba(72, 61, 139, 0.4);
+}
+
+/* Dark Type */
+.atk-btn.type-dark {
+    background: linear-gradient(135deg, #705848, #A29288);
+    color: white;
+    border: 2px solid #49392F;
+    box-shadow: 0 4px 6px rgba(47, 79, 79, 0.4);
+}
+
+/* Steel Type */
+.atk-btn.type-steel {
+    background: linear-gradient(135deg, #B8B8D0, #D1D1E0);
+    color: white;
+    border: 2px solid #787887;
+    box-shadow: 0 4px 6px rgba(112, 128, 144, 0.4);
+}
+
+/* Fairy Type */
+.atk-btn.type-fairy {
+    background: linear-gradient(135deg, #EE99AC, #F4BDC9);
+    color: white;
+    border: 2px solid #9B6470;
+    box-shadow: 0 4px 6px rgba(255, 182, 193, 0.4);
+}
+
+.atk-btn.type-undefined{
+    display: none;
+}
+
+/* 호버링 이펙트 */
+.atk-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* 기타 버튼 */
+.change-btn {
+    background-color: #D3D3D3;
+    color: #333;
+    border: 2px solid #A9A9A9;
+    box-shadow: 0 4px 6px rgba(169, 169, 169, 0.4);
+}
+
+.change-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 8px rgba(169, 169, 169, 0.6);
 }

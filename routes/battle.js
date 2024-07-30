@@ -281,7 +281,7 @@ connectDB.then(client => {
 });
 
 router.get('/match',checkAuth,async(req,res)=>{
-    let sessions = await db.collection('battle_sessions').find().toArray();
+    let sessions = await db.collection('battle_sessions').find({status: 'waiting'}).toArray();  //매칭 안된 방만 찾아줌
     res.render('battle/match.ejs',{sessions:sessions});
 })
 router.get('/rooms-json',async(req,res)=>{  //room 리스트를 json으로 반환
@@ -320,6 +320,7 @@ router.post('/create-room',checkAuth,async(req,res)=>{
         date_time : new Date(), //세션 유효기간 10분으로 초기화
         code:code,
         title : title,
+        status : 'waiting'
     });
     res.redirect('/battle/'+code);
 })
@@ -339,9 +340,14 @@ router.get('/battle/:code',checkAuth,async(req,res)=>{
     if (sessionUser1Id === reqUserId) { //방 주인이라면 home으로 참가
         side = 'home'
     } else if(session.user2==null||session.user2==req.user._id.toString()){ //두번째 유저 자리가 비어있다면 away로 참가
-        
         side = 'away'
-        await db.collection('battle_sessions').updateOne({_id : new ObjectId(session._id)},{$set:{user2:new ObjectId(reqUserId)}});
+        await db.collection('battle_sessions').updateOne(
+            {_id : new ObjectId(session._id)},
+            {
+                $set:{
+                    user2:new ObjectId(reqUserId),
+                    status:'matched', //매칭됨으로 상태 변경(이 단계부터는 방 검색 안됨)
+            }});
     }
     else{   //관전자라면...?
         side = 'spectator'
@@ -372,9 +378,24 @@ io.on('connection', async(socket) => {   //접속 할때마다 유저에게 고�
     socket.side='';
     let side;
     let roomCode='';
-    const randomPokemonId = () => Math.floor(Math.random() * 1010) + 1;
+
+    
     let homeDeck = [];  //보유중인 포켓몬
     let awayDeck = [];
+    function randomPokemonId(){
+        let id;
+
+        do {
+            id = Math.floor(Math.random() * 1010) + 1;
+        } while (homeDeck.includes(id) || awayDeck.includes(id));   //덱에 포함되어있지 않는 수가 나올 때 까지
+
+
+        //종족값 최소 보장 매커니즘은 여기보단 추출 후에 다시 추출하는 식으로 짜는게 맞을듯
+
+
+        return id;
+    };
+    
     //wait이면 시작 대기중 play면 게임중, win이면 접속 종료 시 포인트 증가, lose면 포인트 감소
     let status = 'wait';
     let action = 'attack1'; //기본값은 1번 타입으로 공격
@@ -440,7 +461,7 @@ io.on('connection', async(socket) => {   //접속 할때마다 유저에게 고�
         await db.collection('battle_sessions').updateOne(
         {code: roomCode},
         { $set: { date_time: new Date() } }
-    );
+        );
 
         for(i=0;i<6;i++){   //홈 플레이어의 포켓몬 6마리의 도감번호를 선정
             homeDeck.push(randomPokemonId());
@@ -463,12 +484,14 @@ io.on('connection', async(socket) => {   //접속 할때마다 유저에게 고�
     
     //내 포켓몬 선택 수신
     socket.on('select-pokemon',async(data)=>{
+        status='play';
         myBattlePokemon=data;
         io.to(roomCode).emit('select-pokemon',{side:side,pokemon:myBattlePokemon});
         //console.log(myBattlePokemon);
     })
     //상대 선택 포켓몬 수신
     socket.on('opSelect',(data)=>{
+        status='play';
         opBattlePokemon = data.opPokemon;
         console.log(data.opPokemon);
     })
@@ -484,6 +507,8 @@ io.on('connection', async(socket) => {   //접속 할때마다 유저에게 고�
 
         //console.log('emit [start-turn]');
         //console.log(myId);
+
+        
         myFieldPokemon = myBattlePokemon[myFieldPokemonIndex];
         opFieldPokemon = opBattlePokemon[opFieldPokemonIndex];
         
@@ -518,11 +543,19 @@ io.on('connection', async(socket) => {   //접속 할때마다 유저에게 고�
     function battleAction(myAction,opAction){  //우선도와 스피드에 따라 어느쪽이 먼저 행동할지 모르기 때문에 함수로 분리해서 사용
         let log = [];
         let effect; //효과 배율 참조
-        //여기에 교체, 항복 추가
+
+        if(myBattlePokemon[myFieldPokemonIndex].speed == opBattlePokemon[opFieldPokemonIndex].speed){
+            if(side=='away'){
+                myBattlePokemon[myFieldPokemonIndex].battleSpeed+=0.1;
+            }
+            else{
+                opBattlePokemon[opFieldPokemonIndex].battleSpeed+=0.1
+            }
+        }
 
         //교체
         if(myAction=='change'&&opAction=='change'){ //둘 다 교체라면 스피드 빠른쪽 먼저 교체
-            if (myBattlePokemon[myFieldPokemonIndex].speed > opBattlePokemon[opFieldPokemonIndex].speed){   //내가 더 빠름
+            if (myBattlePokemon[myFieldPokemonIndex].battleSpeed > opBattlePokemon[opFieldPokemonIndex].battleSpeed){   //내가 더 빠름
                 changeFieldPokemon('me');
                 log.push({action:'myChange'});
 
@@ -546,7 +579,7 @@ io.on('connection', async(socket) => {   //접속 할때마다 유저에게 고�
             log.push({action:'opChange'});
         }
 
-        if (myBattlePokemon[myFieldPokemonIndex].speed > opBattlePokemon[opFieldPokemonIndex].speed){ 
+        if (myBattlePokemon[myFieldPokemonIndex].battleSpeed > opBattlePokemon[opFieldPokemonIndex].battleSpeed){ 
             //내가 더 빠를 때
 
             //내 기술 시전
@@ -773,7 +806,7 @@ io.on('connection', async(socket) => {   //접속 할때마다 유저에게 고�
 
     socket.on('disconnect', async() => {
         const roomId = socket.roomsJoined[0] //방 연결 끊긴 코드는 알아냈으니 이걸로 접속 끊겼을 때 처리 하면 될듯
-        console.log(socket.side);
+        console.log(socket.side+', 상태는'+status);
         socket.leave(roomId);
 
         //포인트 업데이트 함수
@@ -784,9 +817,22 @@ io.on('connection', async(socket) => {   //접속 할때마다 유저에게 고�
         )
         }
         
-        if(status=='wait'){
-            io.to(roomId).emit('leave');    //게임 시작하기 전에 떠남
+        if(status=='wait'&&side=='away'){ //away가 게임 시작하기 전에 떠남
+            io.to(roomId).emit('leave');    
+            await db.collection('battle_sessions').updateOne(
+                {code:Number(roomId)},  //문자가 아니라 숫자 형태여서 안됨 타입 힌트를 남기던 타입스크립트를 애요ㅇ합시다
+                {
+                    $set:{
+                        status:'waiting', //다시 대기중으로 상태 변경(방 목록에서 노출)
+                        }
+                    }
+            );
+            console.log(roomId+'방 다시 대기방으로');
         }
+        else if(status=='wait'&&side=='home'){ //home이 게임 시작하기 전에 떠남
+            await db.collection('battle_sessions').deleteOne({code:Number(roomId)});    //방폭
+        }
+
         if(status=='play'){ //게임 중 강제종료 할 경우 상대에게 승리 플래그 지급
             updatePoint(-1);
             console.log('탈주함');

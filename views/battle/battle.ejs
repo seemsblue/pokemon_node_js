@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><%= session.code%>번 방</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    
     <link href="/css/battle.css" rel="stylesheet">
 
 </head>
@@ -34,7 +35,7 @@
         <div id="timer">
             <span>5</span>
         </div>
-        <button id="askStartBtn" class="btn btn-warning">시작하기</button>
+        <button id="askStartBtn" class="btn btn-warning hidden">시작하기</button>
     </header>
 
     <div class="row" id="game-screen" style="height: 900px; width:100%">
@@ -68,11 +69,11 @@
         </div>
 
         <div id="message-container"></div>
-        <div class="row hidden" id="action-btn-container">
-            <button class="col-6 action-btn" data-action="typeAttack1">타입공격1</button>
-            <button class="col-6 action-btn" data-action="typeAttack2">타입공격2</button>
-            <button class="col-6 action-btn" data-action="normalAttack">일반공격</button>
-            <button class="col-6 action-btn" data-action="change">교체</button>
+        <div class="row" id="action-btn-container">
+            <button id="type-attack-1" class="col-5 action-btn atk-btn" data-action="typeAttack1">타입공격1</button>
+            <button id="type-attack-2" class="col-5 action-btn atk-btn" data-action="typeAttack2">타입공격2</button>
+            <button class="col-5 action-btn atk-btn" data-action="normalAttack">일반공격</button>
+            <button class="col-5 action-btn change-btn" data-action="change">교체</button>
         </div>
     </div>
 
@@ -173,6 +174,8 @@
         const btnGameScreen = document.querySelector('#game-screen #action-btn-container');
         const myPokemonImg = document.querySelector('#game-screen #me img');
         const opPokemonImg = document.querySelector('#game-screen #op img');
+        const myPokemonName = document.querySelector('#game-screen #me .name');
+        const opPokemonName = document.querySelector('#game-screen #op .name');
 
         const battleRulePokemonCount = 2;  // 배틀 규칙에 따른 포켓몬의 개수(확장고려함?)
 
@@ -267,6 +270,14 @@
             document.querySelector('.op .hp-text').textContent = opFieldPokemon.battleDef;
             document.querySelector('#op .battle-pokemon-info .hp').style.width = `${opFieldPokemon.battleDefPercent}%`;
         }
+        function updateMyHpInfoByPercent(percent){
+            document.querySelector('.me .hp-text').textContent = myFieldPokemon.battleDef;
+            document.querySelector('#me .battle-pokemon-info .hp').style.width = `${percent}%`;
+        }
+        function updateOpHpInfoByPercent(percent){
+            document.querySelector('.op .hp-text').textContent = opFieldPokemon.battleDef;
+            document.querySelector('#op .battle-pokemon-info .hp').style.width = `${percent}%`;
+        }
 
         // 이 부분을 모듈화해서 내부 텍스트 요소만 그때그때 바뀌게 해야할듯
         // 전체 리렌더
@@ -291,6 +302,32 @@
             document.querySelector('#game-screen #op .name').textContent = opFieldPokemon.name;
             document.querySelector('#game-screen #op .hp-container .hp').style.width = 
             `${(opFieldPokemon.battleDef / opFieldPokemon.battleDefMax)*100}%`;
+        }
+
+        /**
+        * 공격 버튼 디자인 변경 함수
+        * @param {string} type1 - (예: "fire", "water").
+        * @param {string} type2 - 타입2 없으면 undifined로 임시타입 부여되고 숨겨짐
+        */
+        function updateAttackButtons(type1, type2) {
+            const typeAttack1Button = document.getElementById('type-attack-1');
+            const typeAttack2Button = document.getElementById('type-attack-2');
+            const typeClasses = [
+                'type-normal', 'type-fire', 'type-water', 'type-grass', 'type-electric',
+                'type-ice', 'type-fighting', 'type-poison', 'type-ground', 'type-flying',
+                'type-psychic', 'type-bug', 'type-rock', 'type-ghost', 'type-dragon',
+                'type-dark', 'type-steel', 'type-fairy','type-undefined'
+            ];
+
+            // 기존 타입 제거
+            typeClasses.forEach(typeClass => {
+                typeAttack1Button.classList.remove(typeClass);
+                typeAttack2Button.classList.remove(typeClass);
+            });
+        
+            // 타입 추가하기
+            typeAttack1Button.classList.add(`type-${type1}`);
+            typeAttack2Button.classList.add(`type-${type2}`);
         }
 
         /**
@@ -382,8 +419,10 @@
             socket.emit('select-pokemon', myDeck); // 내 서버소켓에 선택한 포켓몬 리스트 전송
         }
 
+        //시작버튼 클릭 이벤트
         function askStartHandler() {
-            socket.emit('askStart');
+            socket.emit('askStart');    //시작요청 소켓 전송
+            askStartBtn.classList.add('hidden');    //시작버튼 숨김
         } 
         
         socket.emit('ask-join','<%= JSON.stringify(session.code) %>')   //방에 들어오면 코드로 서버에 룸 접속 요청
@@ -413,17 +452,6 @@
                 askStartBtn.addEventListener('click', askStartHandler);
             }
         })
-
-        //액션버튼에 이벤트 추가
-        document.querySelectorAll('#action-btn-container .action-btn').forEach(button => {
-            button.addEventListener('click', function() {
-                // data-action 속성에 따라 socket.emit 호출
-                const action = this.getAttribute('data-action');    //버튼에 달려있는 속성 추출
-                socket.emit('select-action', { side : side ,action : action });
-                // div 컨테이너에 hidden 클래스를 추가
-                document.getElementById('action-btn-container').classList.add('hidden');
-            });
-        });
 
         //askStart 수신(게임 시작 요청)
         socket.on('askStart',()=>{
@@ -548,6 +576,7 @@
                 //게임 시작 이펙트 애니메이션 넣을 자리
                 setTimeout(()=>{
                     paintBattlePokemon();
+                    updateAttackButtons(myFieldPokemon.types[0],myFieldPokemon.types[1]);
                     socket.emit('start-turn');
                 },3000);    //3초+동안 이펙트 애니메이션 재생 (모달 형식으로 화면 다 가리면서 촤악 하면 멋질듯)
             }
@@ -626,6 +655,7 @@
                     case 'myChange': {
                         let prevName = myFieldPokemon.name; // 기존 포켓몬 이름
                         changeFieldPokemon('me');
+
                         /**
                         *   0. 교체 문구를 띄운다
                         *   1. img 투명도 0으로 만든다.
@@ -633,27 +663,48 @@
                         *   3. 투명도를 1로 바꾼다.
                         *   4. 교체 이름을 띄운다
                         */
+                        
                         messageGameScreen.textContent = `돌아와! ${prevName}!`; // 교체 문구를 띄운다
-                        myPokemonImg.classList.add('faded');        // 투명화
-                        setTimeout(() => {
+                        myPokemonImg.style.opacity = '0';
+                        setTimeout(()=>{
                             myPokemonImg.src = myFieldPokemon.backImg;  // 이미지 교체
-                            myPokemonImg.classList.remove('faded');     // 투명도 제거
-                            messageGameScreen.textContent = `힘내! ${myFieldPokemon.name}!`; // 교체 이름을 띄운다
-                            resolve();  // 작업 완료 후 resolve 호출
-                        }, 1000); // 1초
+                        },1000);
+                        //두 번째 메시지 출력 및 투명도 100%로 설정
+                        setTimeout(() => {
+                            setMessage(`가라! ${myFieldPokemon.name}`);
+                            myPokemonImg.style.opacity = '1'; // 완전히 불투명하게 설정
+                        }, 2000);
+                        setTimeout(() => {
+                            updateMyHpInfoByPercent(100);
+                            updateAttackButtons(myFieldPokemon.types[0],myFieldPokemon.types[1]);
+                            myPokemonName.textContent = myFieldPokemon.name;
+                            setTimeout(()=>{
+                                resolve();
+                            },200)
+                        }, 4000); 
                         break;
                     }
                     case 'opChange': {
                         let prevName = opFieldPokemon.name; // 기존 포켓몬 이름
                         changeFieldPokemon('op');
+
                         messageGameScreen.textContent = `상대는 ${prevName}를 넣었다!`; // 교체 문구를 띄운다
-                        myPokemonImg.classList.add('faded');        // 투명화
+                        opPokemonImg.style.opacity = '0';
+                        setTimeout(()=>{
+                            opPokemonImg.src = opFieldPokemon.frontImg;  // 이미지 교체
+                        },1000);
+                        // 2초 기다렸다가 두 번째 메시지 출력 및 투명도 100%로 설정
                         setTimeout(() => {
-                            opPokemonImg.src = opFieldPokemon.backImg;  // 이미지 교체
-                            opPokemonImg.classList.remove('faded');     // 투명도 제거
-                            messageGameScreen.textContent = `상대는 ${opFieldPokemon.name}를 내보냈다!`; // 교체 이름을 띄운다
-                            resolve();  // 작업 완료 후 resolve 호출
-                        }, 1000); // 1초
+                            setMessage(`상대는 ${opFieldPokemon.name}를 내보냈다!`);
+                            opPokemonImg.style.opacity = '1'; // 완전히 불투명하게 설정
+                        }, 2000);
+                        setTimeout(() => {
+                            updateOpHpInfoByPercent(100);
+                            opPokemonName.textContent = opFieldPokemon.name;
+                            setTimeout(()=>{
+                                resolve();
+                            },200)
+                        }, 4000); 
                         break;
                     }
                     case 'myAction': {
@@ -662,6 +713,7 @@
                         else if (logLine.detail == 'typeAttack2') atkType = myFieldPokemon.types[1];
                         else atkType = '일반';
                         
+                        if (atkType==undefined) atkType = myFieldPokemon.types[0];
 
                         console.log(`${myFieldPokemon.name}의 ${atkType}공격!`);
                         document.querySelector('#message-container').innerHTML = `${myFieldPokemon.name}의 ${atkType}공격!`;
@@ -695,6 +747,9 @@
                         if (logLine.detail == 'typeAttack1') atkType = opFieldPokemon.types[0];
                         else if (logLine.detail == 'typeAttack2') atkType = opFieldPokemon.types[1];
                         else atkType = '일반';
+
+                        if (atkType==undefined) atkType = myFieldPokemon.types[0];
+
                         console.log(`${opFieldPokemon.name}의 ${atkType}공격!${logLine.effect}`);
                         document.querySelector('#message-container').innerHTML = `${opFieldPokemon.name}의 ${atkType}공격!`;
                         
@@ -741,6 +796,7 @@
                             //두 번째 메시지 출력 및 투명도 100%로 설정
                             setTimeout(() => {
                                 setMessage(`가라! ${myFieldPokemon.name}`);
+                                updateAttackButtons(myFieldPokemon.types[0],myFieldPokemon.types[1]);
                                 myPokemonImg.style.opacity = '1'; // 완전히 불투명하게 설정
                                 setTimeout(() => {
                                     resolve();
@@ -834,6 +890,7 @@
         //상대가 게임 중 나가거나 항복했을 때
         socket.on('endGame',(data)=>{
             socket.emit('endGame',{result:data.result});
+            showResultModal('win'); //이건 어차피 위조해도 점수는 서버에서 계산하고 게임 결과 관리함
         })
 
         //시작 전에 상대 나갔을 때
@@ -867,7 +924,9 @@
         })
 
         //액션버튼에 이벤트 추가
-        document.querySelectorAll('#action-btn-container .action-btn').forEach(button => {
+        //교체 등 상황에 따라서 작동 방식이 아예 다른 버튼도 있으니 그냥 하나씩 달아도 될 것 같음
+
+        document.querySelectorAll('#action-btn-container .atk-btn').forEach(button => {
             button.addEventListener('click', function() {
                 // data-action 속성에 따라 socket.emit 호출
                 const action = this.getAttribute('data-action');    //버튼에 달려있는 속성 추출
@@ -876,6 +935,20 @@
                 document.getElementById('action-btn-container').classList.add('hidden');
             });
         });
+
+        //교체 버튼은 따로 관리
+        document.querySelector('#action-btn-container .change-btn').addEventListener('click',function(){
+            if(myDethCount<1){  //교체 가능한 포켓몬이 있을 때만 요청 전송
+                setMessage('상대를 기다리는 중...');
+
+                const action = this.getAttribute('data-action');    //버튼에 달려있는 속성 추출
+                socket.emit('select-action', { side : side ,action : action });
+                document.getElementById('action-btn-container').classList.add('hidden');
+            }
+            else{
+                setMessage('교체할 수 있는 포켓몬이 없다!')
+            }
+        })
     </script>
 </body>
 </html>
