@@ -1,7 +1,9 @@
+import React from 'react';
+
 function Home(){
     return(
         <div>
-            welcom!!
+            리액트 홈임!!!
         </div>
     );
 }

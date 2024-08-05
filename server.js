@@ -1,5 +1,7 @@
 const express = require('express');
 const path = require('path');
+const app = express();
+
 const { MongoClient, ObjectId } = require('mongodb');
 const methodOverride = require('method-override');
 const bcrypt = require('bcrypt');
@@ -12,7 +14,6 @@ const multerS3 = require('multer-s3');
 const session = require('express-session');
 const passport = require('passport');
 const LocalStrategy = require('passport-local');
-const app = express();
 
 //실시간 통신 소켓 관련
 const { createServer } = require('http'); //이 모듈을 사용하는 라우트 불러오기 위에 먼저 적어야 함 (상호참조는 되는데 이런거 주의)
@@ -62,11 +63,16 @@ const uploadTMP = multer({
 });
 
 app.use(methodOverride('_method'));
-app.use(express.static(__dirname + '/public'));
-app.use(express.static(path.join(__dirname, 'react-app/build'))); //리액트 파일주소
+
 app.set('view engine', 'ejs');
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// '/'로 접속하면 일반 public 폴더(현재 디렉토리), '/react' 로 접속하면 react/build의 디렉토리
+app.use('/', express.static( path.join(__dirname, 'public') ));
+app.use('/react', express.static( path.join(__dirname, 'react-app/build') ));
+
+//app.use(express.static(path.join(__dirname, 'react-app/build')));   //리액트가 전체 라우팅 담당할때만 쓰셈
 
 const sessionMiddleware = session({
   secret: '1234', //암호화 비번인데 지금은 안쓸거임
@@ -109,49 +115,53 @@ passport.deserializeUser(async (user, done) => {
   });
 });
 
-
-
 io.engine.use(sessionMiddleware);
-
-
 
 
 // 세팅 끝
 
 //미들웨어 => 사실 미들웨어도 middlewares.js 파일로 분리하는 편이 관리가 편하다고 함 시간나면 그렇게 하기
+
 function checkAuth(req,res,next){ //로그인이 필요한 곳에 가져다 쓰는 미들웨어 / 로그아웃 상태일 시 /login으로 redirect
   if(req.isAuthenticated()) {
     return next();
   }
-  res.redirect('/login');
+  else{
+    res.redirect('/login');
+  }
 }
 
 function checkGuest(req,res,next){ //로그인 상태일 시 '/'으로 redirect
   if(req.isAuthenticated()) {
     return res.redirect('/');
   }
-
   next();
 }
-module.exports = { checkAuth, checkGuest, io ,};   //exports는 파일당 한번만
 
-//라우트
-app.use('/', require('./routes/forum.js'))
-app.use('/', require('./routes/battle.js'))
-
-
-app.use('/list', (req, res, next) => {
+// '/list' 경로로 들어오는 요청에 대한 미들웨어
+app.use('/list', (req, res, next) => {  
   console.log(new Date());
+  next(); //다음 단계 실행(없으면 미들웨어단계에서 끝남)
+});
+
+//모든 경로에 대해서 로그인 여부 확인
+app.use((req, res, next) => {
+  res.locals.user = req.user;
   next();
 });
 
-
+module.exports = { checkAuth, checkGuest, io ,};   //미들웨어 exports는 파일당 한번만
 //미들웨어 끝
 
+//라우팅
 app.get('/',(request,response)=>{
   console.log(request.user)
   response.render('home.ejs')
 })
+
+app.use('/', require('./routes/forum.js')) //  '/'경로에 대해 아래 파일들에서 정의된 경로도 사용한다는 뜻
+app.use('/', require('./routes/battle.js'))
+
 app.get('/home',(request,response)=>{
   console.log(request.user)
   response.render('home.ejs')
@@ -400,10 +410,14 @@ app.get('/detail/:id',async(req,res)=>{
   res.render('detail.ejs',{post:result,comment:comments})
 })
 
-app.get('*', function (req, res) {  //리액트 라우터
+//리액트 라우터
+app.get('/react', function (req, res) {  
   res.sendFile(path.join(__dirname, '/react-app/build/index.html'));
 });
-
+// 리액트 서브 라우팅 / '/react/*~~~~'로 들어오는 모든 주소 라우팅
+app.get('/react/*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'react-app/build/index.html'));
+});
 
 connectDB.then(client => {  //시작!
   console.log('DB 연결 성공');
