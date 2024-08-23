@@ -1,3 +1,15 @@
+@import url('https://fonts.googleapis.com/css2?family=Bagel+Fat+One&family=Do+Hyeon&family=Jua&display=swap');
+.jua-regular {
+    font-family: "Jua", sans-serif;
+    font-weight: 400;
+    font-style: normal;
+}
+.jua-fat {
+    font-family: "Bagel Fat One", system-ui;
+    font-weight: 400;
+    font-style: normal;
+}
+
 .hidden {
     display: none;
 }
@@ -6,82 +18,112 @@
     display: none;
 }
 
-
-.battle-pokemon {
-    height: 200px;
-    width: 200px;
-    position: absolute;
-    border: 1px solid red;
-}
-.op .battle-pokemon{
-    top:0;
-}
-.me .battle-pokemon{
-    bottom: 0;
-}
-.battle-pokemon img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
+body{
+    background-color: #f0f0f0; /* 배경 색상 */
+    color: #333; /* 기본 텍스트 색상 */
 }
 
-.battle-pokemon-info {
-    height: 60px;
-    width: 200px;
-    position: absolute;
-    border: 1px solid red;
- 
+#title {
+    font-size: 2.5rem; /* 타이틀 크기 */
+    font-family: 'Press Start 2P', cursive; /* 게임 느낌의 폰트 */
+    color: #ffcb05; /* 포켓몬 노란색 */
+    text-shadow: 0 0 5px #ffcb05, 0 0 10px #ffcb05; /* 텍스트 그림자 */
+    margin-bottom: 10px;
+    text-align: center;
+    display: inline;
+    margin-left: 20px;
+
 }
-.op .battle-pokemon-info{
-    left: -210px;
-    top:0px;
+#code {
+    font-size: 1.2rem; /* 방 번호 크기 */
+    color: #3d7dca; /* 포켓몬 파란색 */
+    text-shadow: 0 0 3px #3d7dca, 0 0 6px #3d7dca; /* 텍스트 그림자 */
+    margin-bottom: 10px;
+    text-align: center;
+    background: rgba(61, 125, 202, 0.1); /* 연한 파란색 배경 */
+    border-radius: 3px;
+    display: inline-block;
+    margin-left: 10px;
 }
-.me .battle-pokemon-info{
-    left: 210px;
-    top:0px;
-}
-.battle-pokemon-info .name {
-    background-color: white;
-    margin: auto;
-    width: 90%;
-    height: 50%;
-}
-.battle-pokemon-info .hp-container {
-    margin: auto;
-    color: wheat;
-    width: 100%;
-    height: 40%;
-    position: relative;
-    transition: all 0.5s;
-    border: 1px solid #000; /* 테두리 */
-}
-.battle-pokemon-info .hp {
-    position: absolute;
-    background-color: red; /* HP 바 색상 */
-    width: 100%; /* 초기 HP */
-    height: 100%;
-    transition: width 0.5s; /* 부드러운 전환 */
-    left: 0;
-    top: 0;
-}
-.battle-pokemon-info .hp-text {
-    position: absolute;
-    width: 30%; 
-    height: 100%;
-    right: 0;
-    top: 0;
-    color: #000;
+#timer {
+    font-family: 'Press Start 2P', cursive; /* 게임 느낌의 폰트 */
+    font-size: 1rem; /* 큰 글꼴 크기 */
+    color: #ffcb05; /* 포켓몬 노란색 */
+    background: #3d7dca; /* 포켓몬 파란색 배경 */
+    border-radius: 10px; /* 둥근 모서리 */
+    padding: 5px;
+    padding-left: 10px;
+    padding-right: 10px;
+    text-align: center; /* 텍스트 중앙 정렬 */
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5); /* 그림자 효과 */
+    position: relative; /* 애니메이션을 위한 상대 위치 */
+    animation: pulse 1s infinite; /* 애니메이션 추가 */
+    margin-left: 20px;
 }
 
-.battle-pokemon img {
-    transition: opacity 1s ease-in-out;
-    opacity: 1;
+#user-info{
+    background-color: #000000; /* 검은색 배경 */
+    padding: 5px;
+}
+#user-info .col-9{
+    padding-left: 10px;
 }
 
-.battle-pokemon img.faded {
-    opacity: 0;
+#timer span {
+    margin-top: 3px;
 }
 
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.1);
+        opacity: 0.8;
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+#confirm-button {
+    background-color: #FFCB05; /* 포켓몬 테마 노란색 */
+    color: #2A75BB; /* 포켓몬 테마 파란색 */
+    border: 2px solid #2A75BB; /* 파란색 테두리 */
+    border-radius: 12px; /* 둥근 모서리 */
+    padding: 10px 20px; /* 안쪽 여백 설정 */
+    font-size: 16px; /* 텍스트 크기 설정 */
+    font-weight: bold; /* 텍스트 굵게 */
+    text-align: center; /* 텍스트 가운데 정렬 */
+    cursor: pointer; /* 클릭 가능한 포인터 표시 */
+    transition: background-color 0.3s ease, transform 0.2s ease; /* 부드러운 배경색 및 크기 변화 */
+}
+
+#confirm-button:hover {
+    background-color: #F5B700; /* 호버 시 배경색 약간 어둡게 */
+    transform: scale(1.05); /* 호버 시 약간 커짐 */
+}
+
+#message-container {
+    height: 10%;
+    background-color: #F8F8F8; /* 밝은 회색 배경 */
+    border: 2px solid #2A75BB; /* 파란색 테두리 */
+    border-radius: 10px; /* 둥근 모서리 */
+    padding: 15px 20px; /* 안쪽 여백 */
+    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2); /* 약간의 그림자 효과 */
+    font-family: 'Jua', sans-serif; 
+    font-size: large; /* 텍스트 크기 */
+    color: #333; /* 텍스트 색상 */
+    width: 90%; /* 박스의 너비 */
+    margin: 0px auto; /* 가운데 정렬 및 위아래 여백 */
+}
+
+#message-box {
+}
+
+/* 결과 종료창 출력 모달 */
 .modal-overlay {
     position: fixed;
     top: 0;
@@ -100,22 +142,150 @@
     background-color: blue;
 }
 
+/* 게임 배경 이미지 관련 */
+.field-container{
+    background-image: url(https://mir-s3-cdn-cf.behance.net/project_modules/max_1200/5481b326044941.5634ebdaa45a4.png);
+    background-size: 100% 100%;
+    background-position: center;
+    display: flex;
+    position: relative;
+    transition: opacity 2s ease-in-out, visibility 2s ease-in-out;
+}
+.field-container.fade-out {
+    opacity: 0;
+    visibility: hidden;
+}
+
+/* 배틀 포켓몬 포지션 관련 등 */
+.battle-pokemon {
+    height: 200px;
+    width: 200px;
+    position: absolute;
+}
+.op .battle-pokemon{
+    position: absolute;
+    right: 5%;
+    top: 10%; /* 내 포켓몬 상단  위치 */
+    width: 220px;
+}
+.me .battle-pokemon{
+    position: absolute;
+    left: 5%;
+    bottom: 10%; 
+    width: 220px;
+}
+.battle-pokemon .pokemon-img {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    object-fit: cover;
+    z-index: 3;
+}
+.battle-pokemon .plate {
+    width: 260px;
+    object-fit: contain;
+    position: relative;
+    left: -20px;
+    bottom: 85px;
+    z-index: 2;
+}
+
+
+.op .battle-pokemon-info{
+    left: -210px;
+    top:0px;
+}
+.me .battle-pokemon-info{
+    left: 210px;
+    top:0px;
+}
+.battle-pokemon-info {
+    height: 65px;
+    width: 210px;
+    padding-left: 5px;
+    padding-right: 5px;
+    position: absolute;
+    border: 5px solid gray;
+    border-radius: 10px;
+    box-shadow: 0px 0px 7px rgba(0, 0, 0, 0.5);
+    background-color: white;
+    overflow: hidden;
+}
+.battle-pokemon-info .name {
+    background-color: white;
+    margin: auto;
+    width: 90%;
+    height: 50%;
+    font-weight: bold;
+}
+.battle-pokemon-info .hp-container {
+    margin: auto;
+    color: wheat;
+    width: 100%;
+    height: 39%;
+    background-color: #555; /* HP 바의 뒷 배경색 */
+    border-radius: 5px;
+    position: relative;
+    transition: all 0.5s;
+    border: 1px solid #000; /* 테두리 */
+    overflow: hidden;
+}
+.battle-pokemon-info .hp {
+    position: absolute;
+    background-color: rgb(255, 79, 79); /* HP 바 색상 */
+    width: 100%; /* 초기 HP */
+    height: 100%;
+    border-radius: 5px; /* 이건 위 컨테이너랑 통일해야함 */
+    transition: width 2s; 
+    left: 0;
+    top: 0;
+    z-index: 1;
+}
+.battle-pokemon-info .hp-text {
+    position: absolute;
+    width: 30%; 
+    height: 100%;
+    right: 0;
+    top: 0;
+    color: #000;
+    font-weight: bold;
+    z-index: 2; /* HP 바 위에 텍스트 표시 */
+}
+
+.battle-pokemon img {
+    transition: opacity 1s ease-in-out;
+    opacity: 1;
+}
+
+.battle-pokemon img.faded {
+    opacity: 0;
+}
+
+
 /* 액션버튼 스타일 부분 */
 
 /*왼쪽 강제 테두리좀 줌*/
 #action-btn-container { 
+    background: radial-gradient(circle, #f0f4ff 0%, #7ddfec 60%, #58d2e2 100%);
     padding-left: 27px; /* 필요에 따라 패딩 값을 조절 */
 }
 
 .action-btn {
+    width: 49%;
+    height: 46%;
+
     padding: 4px;
-    height: 80px;
     font-size: 1em;
     font-weight: bold;
     text-align: center;
     margin: 3px;
     border-radius: 5px;
     cursor: pointer;
+
+    font-family: "Jua", sans-serif;
+    font-weight: 400;
+    font-style: normal;
+    font-size: 30px;
 
     transition: all 0.3s ease-in-out;
 }
@@ -286,4 +456,184 @@
 .change-btn:hover {
     transform: scale(1.05);
     box-shadow: 0 6px 8px rgba(169, 169, 169, 0.6);
+}
+
+/* 채팅 관련 */
+.chat-box {
+    max-width: 60%;
+    padding: 10px 15px;
+    margin: 5px 0;
+    border-radius: 20px;
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    color: white;
+    width: fit-content; /* 이러면 채팅 길이만큼 박스늘어남 */
+}
+.my-chat{
+    margin-left: 6px;
+    background-color: #4CAF50; 
+
+}
+.op-chat{
+    margin-right: 6px;
+    background-color: #318aff; 
+}
+.ex-chat{
+    margin-left: 6px;
+    margin-right: 6px;
+    background-color: #ff2424; 
+}
+
+.hidden {
+    display: none;
+}
+
+/* 매칭 페이지 관련 */
+.bg {
+    margin-top: 20px;
+    background-color: #121212; /* 다크 배경 */
+    padding: 30px;
+    border-radius: 8px;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.7);
+}
+
+.list-box {
+    background-color: #1f1f1f; /* 리스트 항목 배경색 */
+    padding: 15px;
+    margin: 15px 10px;
+    border-radius: 10px;
+    box-shadow: 0 0 15px #00ffe0, 0 0 25px #00ffe0, inset 0 0 10px #00ffe0; /* 네온 글로우 효과 */
+    transition: transform 0.3s, box-shadow 0.3s; /* 호버 효과를 위한 전환 */
+    position: relative;
+    overflow: hidden;
+}
+
+.list-box h4 {
+    margin: 0;
+    font-size: 1.5rem;
+    font-family: 'Orbitron', sans-serif; /* 테크 느낌의 폰트 */
+    color: #00ffe0; /* 네온 텍스트 색상 */
+    text-shadow: 0 0 5px #00ffe0, 0 0 10px #00ffe0; /* 텍스트 글로우 효과 */
+}
+
+.list-box a {
+    color: #00ffe0;
+    text-decoration: none;
+}
+
+.list-box:hover {
+    transform: translateY(-5px); /* 호버 시 살짝 올라가는 효과 */
+    box-shadow: 0 0 25px #00ffe0, 0 0 35px #00ffe0, inset 0 0 15px #00ffe0; /* 호버 시 글로우 강화 */
+}
+
+.list-box::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -50%;
+    width: 200%;
+    height: 100%;
+    background: linear-gradient(120deg, transparent, rgba(0, 255, 224, 0.2), transparent);
+    transform: skewX(30deg);
+    transition: left 0.5s ease;
+}
+
+.list-box:hover::before {
+    left: 150%;
+}
+
+
+
+/* 시작 이펙트 모달 */
+.start-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.95);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 1s ease-in-out, visibility 1s ease-in-out;
+}
+
+/* 모달이 사라질 때 */
+.start-modal.fade-out {
+    opacity: 0;
+    visibility: hidden;
+}
+
+/* 가운데 텍스트 설정 */
+.start-modal span {
+    color: #FFF;
+    font-size: 3rem;
+    font-weight: bold;
+    margin: 0 10px;
+    position: relative;
+    text-transform: uppercase;
+}
+
+/* 가로줄 스타일 */
+.start-modal span:before,
+.start-modal span:after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    width: 50px;
+    height: 2px;
+    background-color: #FFF;
+    transform: translateY(-50%);
+}
+
+.start-modal span:before {
+    left: -60px;
+}
+
+.start-modal span:after {
+    right: -60px;
+}
+
+/* VS 텍스트에만 줄 추가 안하도록 예외 처리 */
+.start-modal span:nth-child(2):before,
+.start-modal span:nth-child(2):after {
+    display: none;
+}
+
+/* 체크박스 숨기기 (기본 체크박스 숨기고 커스텀 스타일로 대체) */
+.selection-checkbox {
+    display: none;
+}
+
+/* 커스텀 체크박스 스타일 */
+.custom-checkbox {
+    width: 24px;
+    height: 24px;
+    border: 2px solid #ccc;
+    border-radius: 4px;
+    background-color: #fff;
+    position: relative;
+    cursor: pointer;
+}
+
+/* 체크 상태일 때 스타일 */
+.selection-checkbox:checked + .custom-checkbox {
+    background-color: #4CAF50;
+    border-color: #4CAF50;
+}
+
+.selection-checkbox:checked + .custom-checkbox:before {
+    content: '';
+    position: absolute;
+    top: 4px;
+    left: 8px;
+    width: 5px;
+    height: 10px;
+    border: solid white;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
 }

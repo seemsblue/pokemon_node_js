@@ -14,11 +14,8 @@
 
     <div class="mx-auto mt-3" style="width: 95%;">
         <form action="/write" method="POST" class="mt-1">
-            <select name="category" class="form-select mt-2" aria-label="Default select" style="width: 300px;">
-                <option value="general">자유게시판</option>
-                <option value="qna">질문게시판</option>
-                <option value="announcement">공지사항</option>
-                <option value="record">대전기록</option>
+            <select name="category" class="form-select mt-2 hidden" aria-label="Default select" style="width: 300px;">
+                <option value="report">제보 게시판</option>
             </select>
             <div class="input-group mb-3 mt-1">
                 <span class="input-group-text">제목</span>
@@ -26,7 +23,7 @@
               </div>
             <div id="editor-container" class="mt-1"></div>
             <input type="hidden" name="editorContent" id="editorContent">
-            <button type="submit" class="btn btn-success mt-3">작성</button>
+            <button type="submit" class="btn btn-success mt-3">건의하기</button>
         </form>
     </div>
     <!-- Quill JS -->
@@ -39,8 +36,7 @@
                     toolbar: {  //모듈 중 툴바에 관한 설정 여기서 가능
                         container: [
                             [{ 'header': [1, 2, false] }],  // 헤더 옵션: h1, h2, 기본 텍스트
-                            ['bold', 'italic', 'underline'],
-                            [{ 'color': [] }, { 'background': [] }],
+                            ['bold'],
                             [{ 'align': [] }],
                             ['image', 'code-block']
                         ],

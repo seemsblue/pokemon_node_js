@@ -5,87 +5,154 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><%= session.code%>번 방</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
-    
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.1/font/bootstrap-icons.css">
     <link href="/css/battle.css" rel="stylesheet">
-
+    <link href="/css/main.css" rel="stylesheet">
+    <style>
+        html,
+        body {
+          width: 100%;
+          height: 100%;
+        }
+      </style>
 </head>
 <body>
-    
-    <div id="resultModal" class="hidden">
+    <div class="nav" id="en">
+        <a class="jua-regular start inactive" style="font-size: large;">게임 시작!</a>
+        <a class="jua-regular help" style="font-size: large;">도움말</a>
+        <a class="jua-regular surrender" style="font-size: large;">항복</a>
+    </div>
+
+    <div id="resultModal" class="hidden jua-regular" style="font-size: large;">
         <div class="modal-content bg-light p-5 rounded shadow">
             <h1 id="resultText" class="mb-4"></h1>
             <p>10초 후에 매칭 페이지로 이동합니다...</p>
+            <p>아무 곳이나 눌러 바로 이동</p>
         </div>
     </div>
+    
+    <div id="help-alt" class="alt hidden">
+        <div class="alt-box">
+          <button class="close-btn"><i class="bi bi-x-circle"></i></button>
+          <h1 class="hyeon">도움말</h1>
+          <ol class="list-group list-group-numbered">
+            <li class="list-group-item d-flex justify-content-between align-items-start">
+              <div class="ms-2 me-auto">
+                <div class="fw-bold">포켓몬을 선택하자!</div>
+                픽 단계에서 종족값과 타입 상성을 고려해 2마리의 포켓몬을 선택하세요
+              </div>
+              <span class="badge text-bg-primary rounded-pill">상호보완 타입을 선택하세요!</span>
+            </li>
+            <li class="list-group-item d-flex justify-content-between align-items-start">
+              <div class="ms-2 me-auto">
+                <div class="fw-bold">상대 포켓몬에 맞는 기술이나 교체 플레이를 하자!</div>
+                만약 상대가 내 공격을 무효 타입으로 교체할 것 같다면 일반공격으로 안정된 데미지를 주는 것도 하나의 전략!
+              </div>
+              <span class="badge text-bg-primary rounded-pill">어려워요</span>
+            </li>
+            <li class="list-group-item d-flex justify-content-between align-items-start">
+              <div class="ms-2 me-auto">
+                <div class="fw-bold">타입별 상성 관계를 마스터하자!</div>
+                실전 배틀에서 매번 위키를 찾지 않고도 타입을 떠올릴 수 있다!
+              </div>
+              <span class="badge text-bg-primary rounded-pill">좋아요!</span>
+            </li>
+          </ol>
+          <br>
+          <h4 class="hyeon">아무곳이나 눌러 닫을 수 있습니다...</h1>
 
-    <header>
-        <h1><%= session.title%></h1>
-        <span><%= session.code%></span>
-        <div class="row" style="height: 100px;">
-            <div id="me" class="col-6 left">
-                <div class="row" >
+        </div>
+      </div>
+    
+
+    <div class="cover-screen" style="height: 90%; width:100%; position:relative; padding-bottom:6px;">
+        <header style="height: 11%; background-color:black; position:relative;">
+            <div style="height: 30%;">
+                <h1 id="title" class="mb-1"><%= session.title%></h1>
+                <p id="code" class="jua-regular room-code mb-1">방 번호 : <%= session.code%></>
+            </div> 
+            <div id="user-info" class="jua-regular d-flex flex-row" style="height: 50%; background-color:bisque; position:absolute; bottom:0px; width:100%; border:1px">
+                <div id="me" class="left d-flex flex-row" style="width: 48%; height: 100%;">
                 </div>
-            </div>
-            <div id="op" class="col-6 right">
-                <div class="row">
+                <div class="vr" style="width: 1%;"></div>
+    
+                <div id="op" class="right d-flex flex-row" style="width: 48%; height: 100%;">
                     <h1>상대 기다리는중...</h1>
                 </div>
             </div>
-        </div>
-        <div id="timer">
+        </header>
+        <div class="mt-1" id="timer" style="position:absolute; top:12%; left:5px; z-index:30;">
             <span>5</span>
         </div>
-        <button id="askStartBtn" class="btn btn-warning hidden">시작하기</button>
-    </header>
 
-    <div class="row" id="game-screen" style="height: 900px; width:100%">
+        <div class="row hidden" id="pick-screen" style="height: 70%; width:100%">
+            <div class = "col-6 pick-left"></div>
+            <div class = "col-6 pick-right"></div>
+        </div>
 
-        <div class = "col-6 pick-left"></div>
-        <div class = "col-6 pick-right"></div>
+        <div id="start-modal" class="start-modal hidden">
+            <span id="myName1">나</span>
+                <span>VS</span>
+            <span id="opName1">상대</span>
+        </div>
 
-        <div class="col-6 me" id="me" style="height: 70%; position:relative;">
-            <div class="battle-pokemon bot">
-                <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/132.png">
-                <div class="battle-pokemon-info">
-                    <div class="name"></div>
-                    <div class="hp-container">
-                        <div class="hp"></div>
-                        <div class="hp-text"></div>
+        <div class="field-container row" id="game-screen" style="height: 60%;">
+            <div class="col-6 me" id="me" style="height: 90%;">
+                <div class="battle-pokemon bot">
+                    <img class="pokemon-img" src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/132.png">
+                    <img class="plate" src="https://raw.githubusercontent.com/seemsblue/imges/master/%EC%B4%88%EC%9B%90%EB%B0%94%EB%8B%A5.png">
+
+                    <div class="battle-pokemon-info ">
+                        <div class="name"></div>
+                        <div class="hp-container">
+                            <div class="hp"></div>
+                            <div class="hp-text">만땅</div>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
-        <div class="col-6 op" id="op" style="height: 70%; position:relative;">
-            <div class="battle-pokemon top">
-                <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/132.png">
-                <div class="battle-pokemon-info">
-                    <div class="name"></div>
-                    <div class="hp-container">
-                        <div class="hp"></div>
-                        <div class="hp-text"></div>
+            <div class="col-6 op" id="op" style="height: 90%;">
+                <div class="battle-pokemon top">
+                    <img class="pokemon-img" src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/132.png">
+                    <img class="plate" src="https://raw.githubusercontent.com/seemsblue/imges/master/%EC%B4%88%EC%9B%90%EB%B0%94%EB%8B%A5.png">
+                    
+                    <div class="battle-pokemon-info hidden">
+                        <div class="name"></div>
+                        <div class="hp-container">
+                            <div class="hp"></div>
+                            <div class="hp-text"></div>
+                        </div>
                     </div>
+                </div>
+            </div>
+
+            <div id="message-container" class="jua-regular">
+                <div id="message-box">
+                    시작 준비 중
                 </div>
             </div>
         </div>
 
-        <div id="message-container"></div>
-        <div class="row" id="action-btn-container">
-            <button id="type-attack-1" class="col-5 action-btn atk-btn" data-action="typeAttack1">타입공격1</button>
-            <button id="type-attack-2" class="col-5 action-btn atk-btn" data-action="typeAttack2">타입공격2</button>
-            <button class="col-5 action-btn atk-btn" data-action="normalAttack">일반공격</button>
-            <button class="col-5 action-btn change-btn" data-action="change">교체</button>
+        <hr class="border border-secondary border-2 opacity-75 mb-0 mt-0">
+
+
+        <div class="action-btn-container position-relative" id="action-btn-container" style="height: 15%;">
+            <button id="type-attack-1" class="action-btn atk-btn position-absolute top-0 start-0" data-action="typeAttack1">타입공격1</button>
+            <button id="type-attack-2" class="action-btn atk-btn position-absolute top-0 end-0" data-action="typeAttack2">타입공격2</button>
+            <button class="action-btn atk-btn position-absolute bottom-0 start-0" data-action="normalAttack">일반공격</button>
+            <button class="action-btn change-btn position-absolute bottom-0 end-0" data-action="change">교체</button>
+        </div>
+
+        <div class="chat" style="height: 15%;">
+            <div class="msg-box" style="overflow-y: scroll; height:140px">
+            </div>
+            <div class="input-group mb-3">
+                <input type="text" class="form-control" placeholder="도발하기" aria-label="Recipient's username" aria-describedby="button-addon2" minlength="1" maxlength="21">
+                <button class="btn btn-outline-secondary" type="button" id="button-addon2">Button</button>
+            </div>
         </div>
     </div>
-
-    <div class="chat">
-        <div class="msg-box" style="overflow:scroll; height:200px;">
-        </div>
-        <div class="input-group mb-3">
-            <input type="text" class="form-control" placeholder="도발하기" aria-label="Recipient's username" aria-describedby="button-addon2" minlength="1" maxlength="21">
-            <button class="btn btn-outline-secondary" type="button" id="button-addon2">Button</button>
-        </div>
-    </div>
-
+    
     
     <script src="https://cdn.jsdelivr.net/npm/socket.io@4.7.2/client-dist/socket.io.min.js"></script>
 
@@ -166,19 +233,23 @@
         }
 
         const socket = io();
+
+        let myName = '나';
+        let opName = '상대';
+
         const timerSpan = document.querySelector('#timer span');
         const askStartBtn = document.getElementById('askStartBtn');
         const myGameScreen = document.querySelector('#game-screen #me');
         const opGameScreen = document.querySelector('#game-screen #op');
-        const messageGameScreen = document.querySelector('#game-screen #message-container');
-        const btnGameScreen = document.querySelector('#game-screen #action-btn-container');
-        const myPokemonImg = document.querySelector('#game-screen #me img');
-        const opPokemonImg = document.querySelector('#game-screen #op img');
+        const messageGameScreen = document.querySelector('#message-box');
+        const btnGameScreen = document.querySelector('#action-btn-container');
+        const myPokemonImg = document.querySelector('#game-screen #me .pokemon-img');
+        const opPokemonImg = document.querySelector('#game-screen #op .pokemon-img');
         const myPokemonName = document.querySelector('#game-screen #me .name');
         const opPokemonName = document.querySelector('#game-screen #op .name');
+        const msgBox =  document.querySelector('.msg-box');
 
         const battleRulePokemonCount = 2;  // 배틀 규칙에 따른 포켓몬의 개수(확장고려함?)
-
 
         let countdownInterval;
         let battleCountdownInterval;
@@ -243,12 +314,23 @@
 
         function hideGameScreen(){
             /*
-            * game-screen 내의 내용물들을 청소
+            * game-screen 내의 내용물들을 숨김
             */
             myGameScreen.classList.add('hidden');
             opGameScreen.classList.add('hidden');
             messageGameScreen.classList.add('hidden');
             btnGameScreen.classList.add('hidden');
+        }
+
+        //game-screen hiddne 삭제
+        function showGameScreen(){
+
+            myGameScreen.classList.remove('hidden');
+            opGameScreen.classList.remove('hidden');
+            messageGameScreen.classList.remove('hidden');
+            btnGameScreen.classList.remove('hidden');
+            document.querySelector('.field-container #me .battle-pokemon-info').classList.remove('hidden');
+            document.querySelector('.field-container #op .battle-pokemon-info').classList.remove('hidden');
         }
 
         function initGameScreen(){
@@ -271,11 +353,11 @@
             document.querySelector('#op .battle-pokemon-info .hp').style.width = `${opFieldPokemon.battleDefPercent}%`;
         }
         function updateMyHpInfoByPercent(percent){
-            document.querySelector('.me .hp-text').textContent = myFieldPokemon.battleDef;
+            document.querySelector('.me .hp-text').textContent = myFieldPokemon.battleDefMax;
             document.querySelector('#me .battle-pokemon-info .hp').style.width = `${percent}%`;
         }
         function updateOpHpInfoByPercent(percent){
-            document.querySelector('.op .hp-text').textContent = opFieldPokemon.battleDef;
+            document.querySelector('.op .hp-text').textContent = opFieldPokemon.battleDefMax;
             document.querySelector('#op .battle-pokemon-info .hp').style.width = `${percent}%`;
         }
 
@@ -286,12 +368,12 @@
             document.querySelector('#game-screen #me .hp-container .hp').style.width = 
             `${(myFieldPokemon.battleDef / myFieldPokemon.battleDefMax)*100}%`;
             
-            document.querySelector('#game-screen #me img').src = myFieldPokemon.backImg;
+            document.querySelector('#game-screen #me .pokemon-img').src = myFieldPokemon.backImg;
             
             document.querySelector('#game-screen #op .name').textContent = opFieldPokemon.name;
             document.querySelector('#game-screen #op .hp-container .hp').style.width = 
             `${(opFieldPokemon.battleDef / opFieldPokemon.battleDefMax)*100}%`;
-            document.querySelector('#game-screen #op img').src = opFieldPokemon.frontImg;
+            document.querySelector('#game-screen #op .pokemon-img').src = opFieldPokemon.frontImg;
         }
 
         function paintBattlePokemonInfo(){
@@ -318,6 +400,27 @@
                 'type-psychic', 'type-bug', 'type-rock', 'type-ghost', 'type-dragon',
                 'type-dark', 'type-steel', 'type-fairy','type-undefined'
             ];
+            const typeNames = { //한글 작업
+                'normal': '노말 기술',
+                'fire': '불꽃 기술',
+                'water': '물 기술',
+                'grass': '풀 기술',
+                'electric': '전기 기술',
+                'ice': '얼음 기술',
+                'fighting': '격투 기술',
+                'poison': '독 기술',
+                'ground': '땅 기술',
+                'flying': '비행 기술',
+                'psychic': '에스퍼 기술',
+                'bug': '벌레 기술',
+                'rock': '바위 기술',
+                'ghost': '고스트 기술',
+                'dragon': '드래곤 기술',
+                'dark': '악 기술',
+                'steel': '강철 기술',
+                'fairy': '페어리 기술',
+                'undefined': '' // 두 번째 버튼을 숨길 때 사용
+            };
 
             // 기존 타입 제거
             typeClasses.forEach(typeClass => {
@@ -327,7 +430,14 @@
         
             // 타입 추가하기
             typeAttack1Button.classList.add(`type-${type1}`);
-            typeAttack2Button.classList.add(`type-${type2}`);
+            typeAttack1Button.textContent = typeNames[type1] || '알 수 없는 기술';
+            if (type2 && type2 !== 'undefined') {
+                typeAttack2Button.classList.add(`type-${type2}`);
+                typeAttack2Button.textContent = typeNames[type2] || '알 수 없는 기술';
+                typeAttack2Button.style.display = 'inline-block';
+            } else {
+                typeAttack2Button.style.display = 'none'; // 타입이 없거나 undefined인 경우 숨김
+            }
         }
 
         /**
@@ -337,22 +447,32 @@
             const resultModal = document.getElementById('resultModal');
             const resultText = document.getElementById('resultText');
 
-                if (result=='win') {
-                    resultText.textContent = '승리했습니다!';
-                    resultText.classList.add('text-success');
-                } else if(result=='lose'){
-                    resultText.textContent = '패배했습니다!';
-                    resultText.classList.add('text-danger');
-                }
+            //아무곳이나 눌러 빨리 나가기 가능하게
+            resultModal.addEventListener('click',function(){
+                window.location.href = '/match';
+            })
 
-                // 모달 표시
+            //승리 메시지 출력 및 모달메시지 설정
+            if (result=='win') {
+                setMessage(`${opName}과(와)의 승부에서 이겼다!`);
+                resultText.textContent = '승리했습니다!';
+                resultText.classList.add('text-success');
+            } else if(result=='lose'){
+                setMessage(`${opName}과(와)의 승부에서 졌다...`);
+                resultText.textContent = '패배했습니다!';
+                resultText.classList.add('text-danger');
+            }
+            
+            //3초 뒤 모달 표시
+            setTimeout(()=>{
                 resultModal.classList.remove('hidden');
                 resultModal.classList.add('modal-overlay');
+            },3000);
 
-                // 10초 뒤에 메인 페이지로 이동 > 함수에 너무 많은 기능이 들어가는것 같으므로 분리해야할듯
-                setTimeout(() => {
-                    window.location.href = '/match'; // 메인 페이지 URL로 변경
-                }, 10000);
+            // 10초 뒤에 메인 페이지로 이동 > 함수에 너무 많은 기능이 들어가는것 같으므로 분리해야할듯
+            setTimeout(() => {
+                window.location.href = '/match'; // 메인 페이지 URL로 변경
+            }, 13000);
         }
     
         
@@ -366,7 +486,7 @@
 
         //게임 화면 하단 메시지 컨테이너 메시지 설정 함수
         function setMessage(message){
-            document.querySelector('#message-container').innerHTML = message;
+            document.querySelector('#message-box').innerHTML = message;
         }
         
         const maxSelection = 2;
@@ -422,7 +542,7 @@
         //시작버튼 클릭 이벤트
         function askStartHandler() {
             socket.emit('askStart');    //시작요청 소켓 전송
-            askStartBtn.classList.add('hidden');    //시작버튼 숨김
+            document.querySelector('.nav .start').remove();
         } 
         
         socket.emit('ask-join','<%= JSON.stringify(session.code) %>')   //방에 들어오면 코드로 서버에 룸 접속 요청
@@ -432,24 +552,32 @@
         //상단 프로필 출력(홈)
         if('<%=side%>'=='home'){ //내가 홈이면
             side='home';
-            document.querySelector('#me .row').innerHTML=`<div class="col-3" style="height:100px"><img src="<%= home.icon %>" alt="User Icon" style="height:100%"></div><div class="col-9"><%=home.nickname%></div>`;
+            console.log(myName);
+            myName = "<%=home.nickname%>";
+            document.querySelector('#me').innerHTML=`<div style="height:100%"><img src="<%= home.icon %>" alt="User Icon" style="height:100%;"></div><div class="col-9"><% if (home.currentIcon) { %><i class="<%= home.currentIcon %> fs-2"></i><% } %><%=home.nickname%></div>`;
             socket.emit('select-side','home');
         }
         else{
             side='away';
-            document.querySelector('#op .row').innerHTML =`<div class="col-3" style="height:100px"><img src="<%= home.icon %>" alt="User Icon" style="height:100%"></div><div class="col-9"><%=home.nickname%></div>`
+            opName = "<%=home.nickname%>";
+            document.querySelector('#op').innerHTML =`<div style="height:100%"><img src="<%= home.icon %>" alt="User Icon" style="height:100%"></div><div class="col-9"><% if (home.currentIcon) { %><i class="<%= home.currentIcon %> fs-2"></i><% } %><%=home.nickname%></div>`
             socket.emit('select-side','away');
         }
         //어웨이 유저 접속 & 상단 프로필 출력(어웨이)
         socket.on('away-update',(away)=>{
+            let iconTag = away.currentIcon || '';
+
             if('<%=side%>'=='away'){ //내가 어웨이면
+                myName = away.nickname;
                 console.log('<%=side%>');
-                document.querySelector('#me .row').innerHTML=`<div class="col-3" style="height:100px"><img src="${away.icon}" alt="User Icon" style="height:100%"></div><div class="col-9">${away.nickname}</div>`
+                document.querySelector('#me').innerHTML=`<div style="height:100%"><img src="${away.icon}" alt="User Icon" style="height:100%"></div><div class="col-9"><i class="${iconTag} fs-2"></i>${myName}</div>`
             }
             else{   //내가 홈이면
-                document.querySelector('#op .row').innerHTML=`<div class="col-3" style="height:100px"><img src="${away.icon}" alt="User Icon" style="height:100%"></div><div class="col-9">${away.nickname}</div>`
-                askStartBtn.classList.remove('hidden');         //이제 home유저는 버튼을 클릭해 시작요청을 보낼 수 있음
-                askStartBtn.addEventListener('click', askStartHandler);
+                opName = away.nickname;
+                document.querySelector('#op').innerHTML=`<div style="height:100%"><img src="${away.icon}" alt="User Icon" style="height:100%"></div><div class="col-9"><i class="${iconTag} fs-2"></i>${opName}</div>`
+                document.querySelector('.nav .start').classList.remove('inactive');  //이제 home유저는 버튼을 클릭해 시작요청을 보낼 수 있음
+                document.querySelector('.nav .start').addEventListener('click',askStartHandler);
+                
             }
         })
 
@@ -458,6 +586,7 @@
             hideGameScreen();
 
             let counter = 6;
+            document.querySelector('#timer').classList.remove('hidden'); //여기서 숨기는거 해제
             timerSpan.textContent = counter;
 
             countdownInterval = setInterval(() => {
@@ -474,8 +603,9 @@
             
         });
 
-        //배틀에 사용할 포켓몬 선택 단계
+        //배틀에 사용할 포켓몬 선택 픽 단계
         socket.on('battlePhase',()=>{
+            msgBox.insertAdjacentHTML('beforeend', `<div class="chat-box ex-chat text-end"><span>2명의 포켓몬을 선택하세요!</span></div>`)
             let counter = 31;   //픽 제한시간(초)
             timerSpan.textContent = counter;
             selectFlag=false;
@@ -496,6 +626,11 @@
 
         //덱 수신 및 포켓몬 선택창 출력
         socket.on('setDeck',async(data)=>{
+            document.querySelector('.field-container').classList.add('fade-out');
+            setTimeout(()=>{
+                document.querySelector('.field-container').classList.add('hidden');
+            },1000)
+
             console.log(data.homeDeck+'/'+data.awayDeck);
             let myCodes = [];
             let opCodes = [];
@@ -520,12 +655,14 @@
             console.log(myDeck);
             console.log(opDeck);
 
-            async function renderDeck() {
+            async function renderDeck() {   //양 사이드의 포켓몬 덱 출력, 선택버튼 활성화
+                document.querySelector('#pick-screen').classList.remove('hidden');  //hidden 제거
                 await Promise.all(myDeck.map((data, i) => {
                     document.querySelector('.pick-left').insertAdjacentHTML("beforeend", `
-                        <div style="height:15%; display: flex; align-items: center;">
+                        <div style="height:14%; display: flex; align-items: center;">
                             ${makeImgTag(data.frontImg, i)}
-                            <input type="checkbox" data-index="${i}" class="selection-checkbox" onchange="handleCheckboxChange(event)">
+                            <input type="checkbox" id="checkbox-${i}" data-index="${i}" class="selection-checkbox" onchange="handleCheckboxChange(event)">
+                            <label for="checkbox-${i}" class="custom-checkbox"></label>
                         </div>
                     `);
                 }));
@@ -556,25 +693,31 @@
             if(areBothPlayersReady()==true){    //두명 다 선택을 마치고 기다리고 있는 상태라면 배틀 페이즈 시작 요청
                 document.querySelector('.pick-left').innerHTML = '';    //픽창 지우기
                 document.querySelector('.pick-right').innerHTML = '';
-                document.querySelector('.pick-left').classList.add('hidden');
-                document.querySelector('.pick-right').classList.add('hidden');
+                document.querySelector('#pick-screen').classList.add('hidden');
 
 
                 setPlayersNotReady();   //준비 상태 초기화
                 hideGameScreen();
-                messageGameScreen.textContent = '게임 시작중...'
-                myGameScreen.classList.remove('hidden');
-                opGameScreen.classList.remove('hidden');
-                messageGameScreen.classList.remove('hidden');
-                btnGameScreen.classList.remove('hidden');
+                messageGameScreen.textContent = '게임 시작 중...'
+                
+                showGameScreen();
                 //initGameScreen();
                 document.querySelector('.me .name').textContent = mySelectedPokemon[0].name;  //배틀 선봉 초기값 설정
                 document.querySelector('.op .name').textContent = opSelectedPokemon[0].name;
                 document.querySelector('.me .hp-text').textContent = myFieldPokemon.battleDef;
                 document.querySelector('.op .hp-text').textContent = opFieldPokemon.battleDef;
 
+                
+
+                document.querySelector('.field-container').classList.remove('hidden');
+                document.querySelector('.field-container').classList.remove('fade-out');
+
                 //게임 시작 이펙트 애니메이션 넣을 자리
+                document.querySelector('.start-modal #myName1').textContent = myName;
+                document.querySelector('.start-modal #opName1').textContent = opName;
+                document.getElementById('start-modal').classList.remove('hidden');
                 setTimeout(()=>{
+                    document.getElementById('start-modal').classList.add('fade-out');   //시작효과 사라지는 모션 시작
                     paintBattlePokemon();
                     updateAttackButtons(myFieldPokemon.types[0],myFieldPokemon.types[1]);
                     socket.emit('start-turn');
@@ -584,11 +727,12 @@
 
 
         /**
-        * 턴 시작 페이즈
+        * 액션 턴 페이즈
         */
-        let timeInterval;
+        let timeInterval;   //
 
         function startTurn(){
+            messageGameScreen.textContent = '액션을 선택하세요!'
             let counter = 31;
             timerSpan.textContent = counter;
             paintBattlePokemon();
@@ -597,7 +741,9 @@
             timerInterval = setInterval(() => {
                 counter--;
                 timerSpan.textContent = counter;
-
+                if(counter == 28){
+                    document.getElementById('start-modal').classList.add('hidden'); //다시 시작 효과 완전 없애기
+                }
                 if (counter <= 0) {
                     clearInterval(timerInterval);
                     timerSpan.textContent = '통신 대기중...';
@@ -648,8 +794,10 @@
             return new Promise((resolve) => {
                 let action = logLine.action;
                 if (action == 'lose' || action == 'win') {    // 승리나 패배 시 결과 모달 출력
-                    showResultModal(action);
-                    resolve();  // 승리나 패배 시 즉시 resolve
+                    setTimeout(()=>{
+                        showResultModal(action);
+                        resolve();  // 승리나 패배 시 즉시 resolve
+                    },100)
                 }
                 switch (action) {    // 로그 종류별로 화면 효과 반영
                     case 'myChange': {
@@ -668,20 +816,20 @@
                         myPokemonImg.style.opacity = '0';
                         setTimeout(()=>{
                             myPokemonImg.src = myFieldPokemon.backImg;  // 이미지 교체
-                        },1000);
+                        },2000);
                         //두 번째 메시지 출력 및 투명도 100%로 설정
                         setTimeout(() => {
                             setMessage(`가라! ${myFieldPokemon.name}`);
                             myPokemonImg.style.opacity = '1'; // 완전히 불투명하게 설정
-                        }, 2000);
+                        }, 3000);
                         setTimeout(() => {
                             updateMyHpInfoByPercent(100);
                             updateAttackButtons(myFieldPokemon.types[0],myFieldPokemon.types[1]);
                             myPokemonName.textContent = myFieldPokemon.name;
                             setTimeout(()=>{
                                 resolve();
-                            },200)
-                        }, 4000); 
+                            },400)
+                        }, 5000); 
                         break;
                     }
                     case 'opChange': {
@@ -692,19 +840,19 @@
                         opPokemonImg.style.opacity = '0';
                         setTimeout(()=>{
                             opPokemonImg.src = opFieldPokemon.frontImg;  // 이미지 교체
-                        },1000);
+                        },2000);
                         // 2초 기다렸다가 두 번째 메시지 출력 및 투명도 100%로 설정
                         setTimeout(() => {
                             setMessage(`상대는 ${opFieldPokemon.name}를 내보냈다!`);
                             opPokemonImg.style.opacity = '1'; // 완전히 불투명하게 설정
-                        }, 2000);
+                        }, 3000);
                         setTimeout(() => {
                             updateOpHpInfoByPercent(100);
                             opPokemonName.textContent = opFieldPokemon.name;
                             setTimeout(()=>{
                                 resolve();
-                            },200)
-                        }, 4000); 
+                            },400)
+                        }, 5000); 
                         break;
                     }
                     case 'myAction': {
@@ -716,14 +864,18 @@
                         if (atkType==undefined) atkType = myFieldPokemon.types[0];
 
                         console.log(`${myFieldPokemon.name}의 ${atkType}공격!`);
-                        document.querySelector('#message-container').innerHTML = `${myFieldPokemon.name}의 ${atkType}공격!`;
+                        document.querySelector('#message-box').innerHTML = `${myFieldPokemon.name}의 ${atkType}공격!`;
                         
                         // 여기에 기술 이펙트 추가
-        
-                        // hp바 조정
-                        updateOpHpInfo();   //상대 체력 조정
+                        
+                        // hp바 조정(1.5초 소모)
+                        setTimeout(()=>{
+                            updateOpHpInfo();   //상대 체력 조정
+                        },1500)
                         
                         //console.log(`${opFieldPokemon.name} 체력 : ${opFieldPokemon.battleDefPercent}%`);
+
+                        //효과 결과 출력(2.5초 소모)
                         setTimeout(() => {
                             if(logLine.effect =='super'){
                                 messageGameScreen.textContent = `효과가 굉장했다!`;
@@ -738,7 +890,7 @@
                                 messageGameScreen.textContent = ``; // 효과가 굉장 or 별로 or 스킵
                             }
                             resolve();  // 작업 완료 후 resolve 호출
-                        }, 2000);
+                        }, 4000);
 
                         break;
                     }
@@ -751,15 +903,19 @@
                         if (atkType==undefined) atkType = myFieldPokemon.types[0];
 
                         console.log(`${opFieldPokemon.name}의 ${atkType}공격!${logLine.effect}`);
-                        document.querySelector('#message-container').innerHTML = `${opFieldPokemon.name}의 ${atkType}공격!`;
+                        document.querySelector('#message-box').innerHTML = `${opFieldPokemon.name}의 ${atkType}공격!`;
                         
                         // 여기에 기술 이펙트 추가
         
-                        // hp바 조정
-                        updateMyHpInfo();   //내 체력 조정
-                        
+
+                        // hp바 조정(1.5초 소모)
+                        setTimeout(()=>{
+                            updateMyHpInfo();   //내 체력 조정
+                        },1500)
                         
                         //console.log(`${myFieldPokemon.name} 체력: ${myFieldPokemon.battleDefPercent}%`);
+
+                        //효과 결과 출력(2.5초 소모)
                         setTimeout(() => {
                             if(logLine.effect =='super'){
                                 messageGameScreen.textContent = `효과가 굉장했다!`;
@@ -774,7 +930,7 @@
                                 messageGameScreen.textContent = ``; // 효과가 굉장 or 별로 or 스킵
                             }
                             resolve();  // 작업 완료 후 resolve 호출
-                        }, 2000);
+                        }, 4000);
                         break;
                     }
                     case 'myDead': {
@@ -834,8 +990,9 @@
                         break;
                     }
                     default: {
-                        resolve();  // 예기치 않은 action은 바로 resolve
-                        break;
+                        setTimeout(()=>{
+                            resolve();  // 예기치 않은 action은 2초 후 resolve 해버리기
+                        },2000);
                     }
                 }
             });
@@ -857,7 +1014,7 @@
             for (let logLine of log) {
                 console.log(logLine);
                 await printLog(logLine); // printLog가 완료될 때까지 대기
-                await new Promise(resolve => setTimeout(resolve, 1500)); // 이후에도 1초씩 간격
+                await new Promise(resolve => setTimeout(resolve, 1700)); // 이후에도 1초씩 간격
             }
             console.log(myFieldPokemon.name+':'+myFieldPokemon.battleDefPercent+'%');
             timerSpan.textContent = '통신 대기중...';
@@ -884,9 +1041,6 @@
         })
         
 
-
-        
-        
         //상대가 게임 중 나가거나 항복했을 때
         socket.on('endGame',(data)=>{
             socket.emit('endGame',{result:data.result});
@@ -909,26 +1063,41 @@
         });
 
         //채팅 구현
-        document.querySelector('.chat div button').addEventListener('click',(e)=>{  
+        function sendMessage(){ //채팅 전송 함수
             let msg = document.querySelector('.chat div input').value;
-            socket.emit('chat',{msg:msg,room:'<%= JSON.stringify(session.code) %>',side:'<%=side%>'})    //해당 방 룸의 코드로 chat 요청을 보낸다
+            if(msg.length>0){
+                socket.emit('chat',{msg:msg,room:'<%= JSON.stringify(session.code) %>',side:'<%=side%>'})    //해당 방 룸의 코드로 chat 요청을 보낸다
+            }
             document.querySelector('.chat div input').value='';
-        })
+        };
+        document.querySelector('.chat div button').addEventListener('click',sendMessage);   //클릭으로 전송
+        document.querySelector('.chat .form-control').addEventListener('keydown', function(event) {   //엔터로 전송
+            if (event.key === 'Enter') {
+                event.preventDefault(); // 기본 Enter 동작 방지 (폼 제출 방지랑 줄바꿈 등)
+                sendMessage();
+            }
+        });
         socket.on('chat-cast',(data)=>{
             if(data.side=='<%=side%>'){ //내 side와 메시지의 side가 같다면 왼쪽정렬
-                document.querySelector('.msg-box').insertAdjacentHTML('beforeend', `<div class="chat-box"><span>${data.msg}</span></div>`)
+                msgBox.insertAdjacentHTML('beforeend', `<div class="chat-box my-chat"><span>${data.msg}</span></div>`)
             }
             else{
-                document.querySelector('.msg-box').insertAdjacentHTML('beforeend', `<div class="chat-box text-end"><span>${data.msg}</span></div>`) 
+                msgBox.insertAdjacentHTML('beforeend', `<div class="chat-box op-chat text-end"><span>${data.msg}</span></div>`) 
             }
+            msgBox.scrollTop = msgBox.scrollHeight;
         })
 
-        //액션버튼에 이벤트 추가
-        //교체 등 상황에 따라서 작동 방식이 아예 다른 버튼도 있으니 그냥 하나씩 달아도 될 것 같음
+        //어떠한 이유로 인해 모든걸 중단하고 매칭 페이지로 이동해야 하는 경우
+        socket.on('load-match',()=>{
+            window.location.href = '/match';
+        })
 
+        //페이지 최초 로드 시 버튼에 이벤트 추가하는 이벤트들
+            //교체 등 상황에 따라서 작동 방식이 아예 다른 버튼도 있으니 그냥 하나씩 달아도 될 것 같음
         document.querySelectorAll('#action-btn-container .atk-btn').forEach(button => {
             button.addEventListener('click', function() {
                 // data-action 속성에 따라 socket.emit 호출
+                setMessage('상대를 기다리는 중...');
                 const action = this.getAttribute('data-action');    //버튼에 달려있는 속성 추출
                 socket.emit('select-action', { side : side ,action : action });
                 // div 컨테이너에 hidden 클래스를 추가
@@ -948,6 +1117,24 @@
             else{
                 setMessage('교체할 수 있는 포켓몬이 없다!')
             }
+        })
+
+        //상단 항복/도움말 관련 이벤트 추가
+        document.querySelector(".help").addEventListener('click',function(){
+            document.querySelector("#help-alt").classList.remove("hidden");
+        })
+        
+        document.querySelector("#help-alt .close-btn").addEventListener('click',function(){
+            document.querySelector("#help-alt").classList.add("hidden");
+        })
+
+        document.querySelector(".surrender").addEventListener('click',function(){
+            socket.disconnect();    //연결 끊고
+            showResultModal('lose');    //패배 모달출력
+            timerSpan.classList.add('hidden');
+        })
+        document.querySelector("#help-alt").addEventListener('click',function(){
+            document.querySelector("#help-alt").classList.add("hidden");
         })
     </script>
 </body>

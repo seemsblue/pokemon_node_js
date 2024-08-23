@@ -9,13 +9,59 @@
     <link rel="icon" href="/docs/5.1/assets/img/favicons/favicon-16x16.png" sizes="16x16" type="image/png">
     <link rel="mask-icon" href="/docs/5.1/assets/img/favicons/safari-pinned-tab.svg" color="#7952b3">
     <link rel="icon" href="/docs/5.1/assets/img/favicons/favicon.ico">
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    
     <link href="/css/main.css" rel="stylesheet">
+    <link href="/css/sticky.css" rel="stylesheet">
     </head>
 <body>
-    <div>
-        <%- include('nav.ejs')%>
-        <h1>메인페이지임</h1>
+    <%- include('component/nav.ejs')%>
+
+    <div class="stickybox" style="height: 5000px; background:grey; padding-top:1px;">
+        <div class="sbox first-box">
+            <div class="simage">
+                <a href="/List">
+                  <img src="https://raw.githubusercontent.com/seemsblue/imges/master/%EC%8B%9C%EC%97%B01.png" style="width: 100%;">
+                </a>
+              </div>
+            <div class="text">
+                이것저것 기능 엄청다나고 설명하는 장소
+                <p>dd</p>
+                <p>dd</p>
+                <p>dd</p>
+                <p>dd</p>
+                <p>dd</p>
+                <p>dd</p>
+                <p style="margin-top: 900px;">아무튼 이 사이트 좀 쩌는듯</p>
+                <p>dd</p>
+                <p>dd</p>
+            </div>
+        </div>
+
+        <div class="sbox second-box">
+            <div class="simage" style="float:right;">
+              <a href="/match">
+                <img src="https://raw.githubusercontent.com/seemsblue/imges/master/%EC%8B%9C%EC%97%B01.png" style="width: 100%;">
+              </a>
+            </div>
+            <div class="text" style="float:left;">
+                <p>여기는 게임 기능 소개하는 장소</p>
+            </div>
+        </div>
+
+        <div class="sbox third-box">
+            <div class="simage">
+                <img src="https://raw.githubusercontent.com/seemsblue/imges/master/%EC%8B%9C%EC%97%B01.png" style="width: 100%;">
+            </div>
+            <div class="text">
+                <p>여기는 건의사항이나 컨택트 넣을까?</p>
+            </div>
+        </div>
         
     </div>
+    <%- include('component/footer.ejs')%>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+
 </body>
 </html>

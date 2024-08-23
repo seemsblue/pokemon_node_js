@@ -1,0 +1,41 @@
+<div class="nav" id="en">
+    <a href="/Home" class="home-link">Home</a>
+    <a href="/List" class="list-link">게시판</a> 
+    <a href="/write" class="write-link">글쓰기</a> 
+    <a href="/mypage" class="mypage-link">마이페이지</a> 
+    <a href="/match" class="match-link">게임하기!</a>
+
+    <% if (user) { %>
+        <a href="/logout">로그아웃</a>
+    <% } else { %>
+        <a href="/login">로그인/회원가입</a>
+    <% } %>
+</div>
+
+
+<script>
+    // 현재 페이지의 pathname을 가져옴
+    const pathname = window.location.pathname;
+    console.log(pathname);
+
+    // pathname에 따라 특정 링크에 강조 스타일을 적용
+    if (pathname === '/Home' || pathname === '/') {
+        document.querySelector('.home-link').classList.add('active');
+    } else if (pathname.startsWith('/list') || pathname.startsWith('/List') || pathname.startsWith('/search')) {
+        document.querySelector('.list-link').classList.add('active');
+    } else if (pathname === '/write') {
+        document.querySelector('.write-link').classList.add('active');
+    } else if (pathname === '/mypage') {
+        document.querySelector('.mypage-link').classList.add('active');
+    } else if (pathname === '/match') {
+        document.querySelector('.match-link').classList.add('active');
+    }
+    
+</script>
+
+<style>
+    .active {
+        font-weight: bold;
+        color: red;
+    }
+</style>

@@ -12,9 +12,11 @@
 
 const router = require('express').Router();
 const path = require('path');
+
 const { MongoClient, ObjectId } = require('mongodb');
 const { checkAuth } = require('../server.js'); // 미들웨어 파일 경로에 맞게 수정
 
+let opUserId = '';
 
 const { io } = require('../server.js');
 
@@ -359,6 +361,7 @@ router.get('/battle/:code',checkAuth,async(req,res)=>{
     //console.log(currentUser);
 
     res.render('battle/battle.ejs',{session:session,side:side,home:currentUser});
+    
 });
 
 /**
@@ -421,9 +424,9 @@ io.on('connection', async(socket) => {   //접속 할때마다 유저에게 고�
 
     socket.on('away-join',async(data)=>{    //away 유저가 접속했을 때 away 유저의 정보 전송
         const session = socket.request.session;
-        const userId = session.passport.user.id;
-        let awayUser = await db.collection('user').findOne({ _id: new ObjectId(userId)});
-        delete awayUser.password;
+        opUserId = session.passport.user.id;
+        let awayUser = await db.collection('user').findOne({ _id: new ObjectId(opUserId)});
+        delete awayUser.password;   //개인정보는 빼고 전송
         delete awayUser.email;
         io.to(data.room).emit('away-update',awayUser);
     })
@@ -551,6 +554,13 @@ io.on('connection', async(socket) => {   //접속 할때마다 유저에게 고�
             else{
                 opBattlePokemon[opFieldPokemonIndex].battleSpeed+=0.1
             }
+        }
+
+        //상대 항복
+        if(opAction=='surrender'){
+            log.push({action:'win'});
+            status = 'win';
+            return log;
         }
 
         //교체
@@ -809,18 +819,59 @@ io.on('connection', async(socket) => {   //접속 할때마다 유저에게 고�
         console.log(socket.side+', 상태는'+status);
         socket.leave(roomId);
 
+        let recordData = {};
+        if(status == 'win' || status == 'lose'){
+            try{
+                recordData= {
+                    opponent : opUserId,
+                    myPokemon1 : myBattlePokemon[0].id,
+                    myPokemon2 : myBattlePokemon[1].id,
+                    opPokemon1 : opBattlePokemon[0].id,
+                    opPokemon2 : opBattlePokemon[1].id,
+                    result : status,
+                    date_time : new Date(),
+                }
+            }
+            catch{  //시작하기 전에 나갔거나 예기치 못한 경우 메타몽으로 표현
+                recordData = {
+                    opponent : opUserId,
+                    opponent : opUserId,
+                    myPokemon1 :132,
+                    myPokemon2 : 132,
+                    opPokemon1 : 132,
+                    opPokemon2 : 132,
+                    result : status,
+                    date_time : new Date(),
+                }
+            }
+            
+        }
+        
+        
+
         //포인트 업데이트 함수
         async function updatePoint(i){
             await db.collection('user').updateOne(
              {_id: new ObjectId(session.passport.user.id)},
              {$inc:{point:i}}
-        )
+            )
         }
+        //최근전적 업데이트 함수
+        async function updatePoint(i){
+            if(opUserId == ''||status=='wait'){ //상대가 아직 접속하지 않았다면 return, 게임이 아직 시작하지 않았다면 return
+                return; 
+            }
+            await db.collection('user').updateOne(
+             {_id: new ObjectId(session.passport.user.id)},
+             {$set:{recentRecord:recordData}}
+            )
+        }
+
         
         if(status=='wait'&&side=='away'){ //away가 게임 시작하기 전에 떠남
             io.to(roomId).emit('leave');    
             await db.collection('battle_sessions').updateOne(
-                {code:Number(roomId)},  //문자가 아니라 숫자 형태여서 안됨 타입 힌트를 남기던 타입스크립트를 애요ㅇ합시다
+                {code:Number(roomId)},  //문자가 아니라 숫자 형태여서 안됐었음 타입 힌트를 남기던 타입스크립트를 애요ㅇ합시다
                 {
                     $set:{
                         status:'waiting', //다시 대기중으로 상태 변경(방 목록에서 노출)
@@ -831,6 +882,8 @@ io.on('connection', async(socket) => {   //접속 할때마다 유저에게 고�
         }
         else if(status=='wait'&&side=='home'){ //home이 게임 시작하기 전에 떠남
             await db.collection('battle_sessions').deleteOne({code:Number(roomId)});    //방폭
+            io.to(roomId).emit('load-match');   //강제로 매칭페이지로 이동
+            return;
         }
 
         if(status=='play'){ //게임 중 강제종료 할 경우 상대에게 승리 플래그 지급
@@ -844,6 +897,8 @@ io.on('connection', async(socket) => {   //접속 할때마다 유저에게 고�
         else if(status=='lose'){
             updatePoint(-1);
         }
+
+        //자신의 전적 업데이트 insert
     })
 });
 

@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link href="/css/main.css" rel="stylesheet">
+    <link href="/bootstrap/bootstrap.min.css" rel="stylesheet">
+
+    <style>
+      .custom-link {
+        position: relative;
+        color: #6c757d; 
+        text-decoration: none;
+    }
+
+    .custom-link::after {
+        content: '';
+        position: absolute;
+        width: 100%;
+        height: 1px;
+        bottom: -2px;
+        left: 0;
+        background-color: #364655; 
+        opacity: 0;
+        transition: opacity 0.3s;
+    }
+
+    .custom-link:hover::after {
+        opacity: 1;
+    }
+  </style>
+</head>
+<body>
+
+  <%- include('nav.ejs')%>
+  <div class="post-box row">
+    <div id="category-side" class="col-3 col-lg-2 col-xxl-1 offset-xxl-1">
+      카테고리
+    </div>
+
+    <div id="search" class="container col-9 col-lg-6 offset-lg-1 col-xxl-5 offset-xxl-1">
+      <form class="d-flex ms-3 mt-3" style="width: 100%;">
+        <input class="form-control me-2 search" type="search" placeholder="제목" aria-label="Search">
+        <select class="form-select me-2 category" aria-label="Category" style="width: 15%;">
+          <option value="" selected>전체</option>  <!-- 기본값: 전체 -->
+          <option value="announcement">공지사항</option>
+          <option value="general">자유게시판</option>
+          <option value="qna">질문</option>
+          <option value="record">대결기록</option>
+          <!-- 여따가 카테고리 계속 추가 -->
+      </select>
+        <button class="btn btn-outline-success search-send" type="button" style="width: 10%; margin-right:18px;">검색</button>
+      </form>
+      <script>
+        document.querySelector(".search-send").addEventListener('click', function(event){
+          event.preventDefault(); // 폼 제출 막기
+          let val = document.querySelector('.search').value;
+          let category = document.querySelector('#search .category').value;
+          if(val.length<=2){
+            location.href = '/search?val=' + encodeURIComponent(val); // URL 인코딩
+          }
+          else{
+            alert('2글자 이상 입력해주세요');
+          }
+        });
+      </script>
+  
+      <div class="post-container d-flex justify-content-center mt-5">
+        <div class="white-bg" style="width: 90%;">
+          <%for(let i=0;i < posts.length;i++){%>
+          <div class="list-box mt-1">
+            <div class="d-flex align-items-center mb-2 mt-2">
+              <a href="/detail/<%=posts[i]._id%>" class="custom-link fs-4 me-2"><%= JSON.stringify(posts[i].title) %></a>
+              <a href="/edit/<%=posts[i]._id%>">✏️</a>
+              <span class="delete ms-auto" data-id="<%=posts[i]._id%>">tt</span>
+            </div>
+            <p><%= (posts[i].category)%></p>
+          </div>
+        <%}%>
+        </div>
+      </div>
+  
+      <div class="btn-container d-flex justify-content-center mt-5">
+        <div class="btn-group me-2" role="group" aria-label="Second group" style="width: 170px;">
+            <!-- 이전 페이지가 3장 이상이면 화살표 -->
+            <%if(pagination.now>3){%>
+                <button class="page-btn btn btn-outline-info" onclick="window.location.href='/list/<%= pagination.now - 3 %>'" type="button"><</button>
+            <%}%>
+            <%for(let i=2;i>0;i--){%>
+                <%if(pagination.now-i<=0)continue;%>
+                <button class="page-btn btn btn-outline-info" onclick="window.location.href='/list/<%= pagination.now - (i) %>'" type="button"><%= pagination.now - (i) %></button>
+            <%}%>
+                <!-- 현재 페이지 -->
+                <button class="page-btn btn btn-outline-info disabled" type="button"><%= pagination.now%></button>
+            <%for(let i=0;i < (pagination.next) ;i++){%>
+                <%if(i>=2)break;%>
+                <button class="page-btn btn btn-outline-info" onclick="window.location.href='/list/<%= pagination.now + (i + 1) %>'" type="button"><%= pagination.now + (i + 1) %></button>
+            <%}%>
+            <!-- 다음 페이지가 3장 이상이면 화살표 -->
+            <%if(pagination.next>2){%>
+                <button class="page-btn btn btn-outline-info" onclick="window.location.href='/list/<%= pagination.now + 3 %>'" type="button">></button>
+            <%}%>
+        </div>
+      </div>
+    </div>
+    <div class="d-none d-lg-block col-lg-3 col-xxl-3">
+      <div class="side-controller float-end border rounded-start-2 m-2 p-2">
+          <p>이쪽에 광고나 기타 리모콘</p>
+          <br>
+          <br>
+          <p>삽입 가능한 사이드바 자리</p>
+      </div>
+    </div>
+  </div>
+  
+
+  <script>
+    for(let i =0;i<'<%=posts.length%>';i++){
+    document.querySelectorAll('.delete')[i].addEventListener('click',function(e){
+      fetch('/delete?docid='+e.target.dataset.id,{
+        method:'DELETE',
+      })
+      .then((r)=>r.text())
+      .then((r)=>{
+        e.target.parentElement.parentElement.style.display='none'
+      })
+    })
+  }
+  </script>
+  <script src="/bootstrap/bootstrap.bundle.min.js"></script>
+</body>
+</html>

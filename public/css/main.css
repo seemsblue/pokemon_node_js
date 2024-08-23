@@ -1,3 +1,8 @@
+@import url('https://fonts.googleapis.com/css2?family=Bagel+Fat+One&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bagel+Fat+One&family=Do+Hyeon&display=swap');
+@import url("https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css");
+
+
 * {
     margin: 0;
     padding: 0;
@@ -12,6 +17,8 @@
 }
 
 .nav a {
+    margin-right: 15px;
+    cursor: pointer;
     float: left;
     display: block;
     color: #f2f2f2;
@@ -23,6 +30,17 @@
 .nav a:hover {
     background-color: #ddd;
     color: black;
+}
+
+.nav .active  {
+    background-color: #ddd;
+    color: black;
+}
+
+.nav .inactive  {
+    cursor: not-allowed;
+    background-color: gray;
+    color: rgb(19, 19, 19);
 }
 
 .alt {
@@ -44,6 +62,7 @@
     padding: 80px;
     background-color: wheat;
     border-radius: 10px;
+    z-index: 11;
 }
 
 .alt .close-btn{
@@ -61,6 +80,58 @@
 
 .list-box:not(:first-child) {
     border-top: 1px dashed  #17a2b8; /* Bootstrap info 색상 */
+}
+
+#middle-side{
+    background-color: white;
+    padding-top: 10px;
+    padding-bottom: 130px;
+}
+#middle-side #category-text{
+    font-weight: bold;
+}
+
+#category-side {
+    background-color: antiquewhite;
+}
+
+#category-content {
+    background-color: white;
+    margin-left: 10px;
+    margin-top: 30px;
+    padding: 5px;
+    border-style: outset;
+}
+#category-btn {
+    display: block; /* 버튼처럼 보이도록 블록 요소로 변환 */
+    padding: 5px 4px; /* 버튼의 안쪽 여백 */
+    margin: 5px; /* 버튼 사이의 간격 */
+    margin-top: 10px;
+    font-size: 16px; /* 폰트 크기 */
+    font-weight: bold; /* 폰트 굵기 */
+    text-decoration: none; /* 밑줄 제거 */
+    color: white; /* 텍스트 색상 */
+    background-color: #67b0ff; /* 기본 배경색 (파란색) */
+    border-radius: 5px; /* 모서리 둥글게 */
+    transition: background-color 0.3s ease, transform 0.3s ease; /* 호버 효과를 위한 전환 */
+}
+
+#category-btn:hover {
+    background-color: #0056b3; /* 호버 시 배경색 (진한 파란색) */
+    transform: translateY(-2px); /* 호버 시 살짝 위로 올라가는 효과 */
+}
+
+.btn-container .disabled{
+    border-style: dashed;
+    font-weight: bolder;
+}
+
+#right-side{
+    padding: 1px;
+}
+
+.side-controller{
+    margin-top: 200px;
 }
 
 /* 새로고침 버튼 */
@@ -81,6 +152,7 @@
 }
 
 /*폰트 세팅*/
+
 .bagel {
     font-family: "Bagel Fat One", system-ui;
     font-weight: 400;
