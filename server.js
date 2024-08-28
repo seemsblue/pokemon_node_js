@@ -70,7 +70,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // '/'로 접속하면 일반 public 폴더(현재 디렉토리), '/react' 로 접속하면 react/build의 디렉토리
 app.use('/', express.static( path.join(__dirname, 'public') ));
-app.use('/react', express.static( path.join(__dirname, 'react-app/build') ));
+// app.use('/react', express.static( path.join(__dirname, 'react-app/build') ));
 
 //app.use(express.static(path.join(__dirname, 'react-app/build')));   //리액트가 전체 라우팅 담당할때만 쓰셈
 
@@ -136,7 +136,7 @@ function checkAdmin(req,res,next){ //관리자 권한(admin) 필요한 곳에 �
     res.redirect('/login');
   }
 
-  if(req.rank=='admin') {   //그 다음 관리자 확인
+  if(req.user.rank=='admin') {   //그 다음 관리자 확인
     return next();
   }
   else{
@@ -167,18 +167,32 @@ module.exports = { checkAuth, checkGuest, io ,};   //미들웨어 exports는 파
 //미들웨어 끝
 
 //라우팅
-app.get('/',(request,response)=>{
-  console.log(request.user)
-  response.render('home.ejs')
+app.get(['/', '/home'], async (req, res) => {
+  try {
+    // 최신 5개 글 가져오기
+    let recentPosts = await db.collection('general forum')
+        .find({}, {
+            projection: {
+                title: 1,
+                _id: 1 // 필요한 필드만 포함
+            }
+        })
+        .sort({ _id: -1 }) // 최신 글 순으로 정렬
+        .limit(5) // 5개의 글만 가져오기
+        .toArray();
+
+    // home.ejs로 데이터 전달
+    res.render('home.ejs', { recentPosts: recentPosts });
+  } 
+  catch (error) {
+    console.error('홈 화면 로드 중 오류 발생:', error);
+    res.status(500).send('서버 오류');
+  }
 })
 
 app.use('/', require('./routes/forum.js')) //  '/'경로에 대해 아래 파일들에서 정의된 경로도 사용한다는 뜻
 app.use('/', require('./routes/battle.js'))
 
-app.get('/home',(request,response)=>{
-  console.log(request.user)
-  response.render('home.ejs')
-})
 
 app.get('/login',checkGuest,(req,res)=>{
   if (req.isAuthenticated()) {
@@ -334,7 +348,7 @@ app.post('/update-icon', checkAuth, async (req, res) => {
 //닉네임 변경
 app.post('/update-nickname',async(req,res)=>{
   const userId = req.user._id;
-  console.log('닉네임 변경 요청됨');
+  const nickname = req.body.nickname;
   if(req.body.nickname.length>8 || req.body.nickname.length<2){ //닉네임이 너무 길거나 짧다면
     return res.status(400).json({ success: false, message: '닉네임 길이가 이상한데요' });
   } else if(await db.collection('user').findOne({nickname:nickname}) != null){
@@ -352,6 +366,30 @@ app.post('/update-nickname',async(req,res)=>{
     res.status(500).json({ success: false, message: '닉네임 변경 중 오류 발생' });
 }
 })
+
+//프로필 사진 프사 변경
+app.post('/upload-icon', uploadTMP.single('image'), async (req, res) => {
+  const userId = req.user._id;
+
+  if (!req.file || !req.file.location) {
+      return res.status(400).send('이미지 업로드 실패');
+  }
+
+  const iconUrl = req.file.location;
+
+  try {
+      // Update the user's icon field with the uploaded image URL
+      await db.collection('user').updateOne(
+          { _id: new ObjectId(userId) },
+          { $set: { icon: iconUrl } }
+      );
+      res.json({ success: true, url: iconUrl });
+  } catch (error) {
+      console.error('Error:', error);
+      res.status(500).json({ success: false, message: '아이콘 업데이트 중 오류 발생' });
+  }
+});
+
 
 //탈퇴 요청
 app.post('/byebyebye',async(req,res)=>{
@@ -422,11 +460,11 @@ app.post('/write',checkAuth,async(req,res)=>{
     content:content,
     category:category,
   }
-  //건의사항 게시판은 따로 관리
+
   if(category == 'report'){
     try{
       await db.collection('report').insertOne(post);
-      res.json({ success: true });
+      res.redirect('/home');  //제보의 경우 홈으로 연결
     }
     catch{
       return res.status(404).json({ success: false, message: '게시 중 오류가 발생했습니다.' });
@@ -440,18 +478,25 @@ app.post('/write',checkAuth,async(req,res)=>{
   }
 })
 
+//건의사항 작성 페이지는 따로 관리 (post 요청은 write 게시판과 권한 분리할 필요가 없으므로 write post요청에서 한번에 처리)
+app.get('/report',checkAuth,(req,res)=>{
+  res.render('writeReport.ejs');
+})
+
 //개발자(관리자) 전용 제보 확인 페이지
 app.get('/admin-report',checkAdmin,async(req,res)=>{
+  let reports = []; //자꾸 여기다 const 쓸래?????????????? 진짜 아오
   try {
     // report 컬렉션에서 모든 문서 가져오기
-    const reports = await db.collection('report').find().toArray();
+    reports = await db.collection('report').find().toArray();
     
     // 가져온 데이터를 adminReport.ejs 파일로 전달하여 렌더링
-    res.render('adminReport', { reports });
   } catch (error) {
     console.error('Error fetching reports:', error);
     res.status(500).send('몽고디비 서버 오류');
   }
+
+  res.render('adminReport', { reports });
 })
 
 app.post('/delete-report',checkAdmin,async(req,res)=>{
@@ -492,8 +537,21 @@ app.get(['/list', '/list/:page'],async(req,res)=>{
   const totalCount = await db.collection('general forum').countDocuments();
   const totalPages = Math.ceil(totalCount / pageCutCount);
 
-  let result = await db.collection('general forum').find({},{title:1,category:1,nickname:1,content: 0}).skip((page-1)*pageCutCount).limit(pageCutCount).toArray(); //전체 찾고, 페이지만큼 스킵하고, 개수 끊어서 할당
-  //console.log(result);  //왜 아직도 content 필드까지 가져오는지는 연구 필요
+  let result = await db.collection('general forum')
+  .find({}, {
+      projection: {
+          title: 1,
+          category: 1,
+          nickname: 1,
+          time:1,
+          _id: 1 // 포함할 필드만 명시적으로 지정합니다
+      }
+  })
+  .sort({ _id: -1 }) // 최신 글부터 정렬  (몽고디비는 생성된 순으로 가져오므로 역순한거밈)
+  .skip((page - 1) * pageCutCount)
+  .limit(pageCutCount)
+  .toArray();  //console.log(result);  
+  //왜 아직도 content 필드까지 가져오는지는 연구 필요
   
   let next = (totalPages-page);
   
@@ -535,7 +593,8 @@ app.get(['/search', '/search/:page'], async (req, res) => {
   const totalCount = await db.collection('general forum').countDocuments(searchCondition);
   const totalPages = Math.ceil(totalCount / pageCutCount);
 
-  let result = await db.collection('general forum').find(searchCondition, { title: 1, category: 1, nickname: 1, content: 0 })
+  let result = await db.collection('general forum').find(searchCondition, { title: 1, category: 1, nickname: 1, time:1})
+      .sort({ _id: -1 }) // 최신 글부터 정렬  (몽고디비는 생성된 순으로 가져오므로 역순한거밈)
       .skip((page - 1) * pageCutCount)
       .limit(pageCutCount)
       .toArray();
@@ -592,14 +651,14 @@ app.post('/comment',checkAuth,async(req,res)=>{
   res.redirect(`/detail/${postId}`);  //글 위치로 새로고침
 })
 
-//리액트 라우터
-app.get('/react', function (req, res) {  
-  res.sendFile(path.join(__dirname, '/react-app/build/index.html'));
-});
-// 리액트 서브 라우팅 / '/react/*~~~~'로 들어오는 모든 주소 라우팅
-app.get('/react/*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'react-app/build/index.html'));
-});
+// //리액트 라우터
+// app.get('/react', function (req, res) {  
+//   res.sendFile(path.join(__dirname, '/react-app/build/index.html'));
+// });
+// // 리액트 서브 라우팅 / '/react/*~~~~'로 들어오는 모든 주소 라우팅
+// app.get('/react/*', (req, res) => {
+//   res.sendFile(path.join(__dirname, 'react-app/build/index.html'));
+// });
 
 connectDB.then(client => {  //시작!
   console.log('DB 연결 성공');

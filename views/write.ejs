@@ -22,7 +22,7 @@
             </select>
             <div class="input-group mb-3 mt-1">
                 <span class="input-group-text">제목</span>
-                <input name="title" type="text" class="form-control" aria-label="Amount (to the nearest dollar)">
+                <input name="title" type="text" class="form-control" aria-label="Amount (to the nearest dollar)" placeholder="제목을 입력하세요!">
               </div>
             <div id="editor-container" class="mt-1"></div>
             <input type="hidden" name="editorContent" id="editorContent">
@@ -48,7 +48,8 @@
                             image: imageHandler // 이미지 버튼 클릭 시 실행되는 핸들러
                         }
                     }
-                }
+                },
+                placeholder: '이미지는 최대 3MB 2장까지 첨부 가능합니다.'
             });
 
             function countImages() {    //이미지 몇개임?

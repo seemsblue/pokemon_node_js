@@ -10,15 +10,22 @@
 <body>
     <%- include('component/nav.ejs')%>
 
-    <div class="header-box">
+    <div class="header-box" >
 
     </div>
-    <div class="post-box row">
-        <div class="col-12 col-lg-7 offset-lg-1 col-xxl-6                                                                                                                         offset-xxl-2">
+    <div class="post-box row" style="background-color: antiquewhite; height:94vh">
+        <div class="col-12 col-lg-7 offset-lg-1 col-xxl-6 offset-xxl-2" style="background-color: white;">
             <div class="p-2">
                 <hr class="border border-danger border-2 opacity-30">
-                <p><%= post.category%></p>
                 <h4><%= post.title%></h4>
+                <hr class="border border-danger border-1 opacity-30">
+
+                <p><%= post.category%></p>
+                <p style="display: inline-block; font-weight:bold"><%= post.nickname%></p>
+                <p class="post_time" data-time="<%= post.time %>" style="display: inline-block;"><%= post.time%></p>
+
+                <hr class="border border-danger border-1 opacity-30">
+
                 <p><%- post.content%></p>
                 <hr class="border border-danger border-2 opacity-30">
         
@@ -41,12 +48,15 @@
             </div>
                  
         </div>
-        <div id="right-side" class="d-none d-lg-block col-lg-3 col-xxl-3">
-            <div class="side-controller float-end border rounded-start-2 m-2 p-2">
+        <div id="right-side" class="d-none d-lg-block col-lg-3 col-xxl-3" >
+            <div class="side-controller float-end border rounded-start-2 m-2 p-2" style="background-color: white;">
                 <p>이쪽에 광고나 기타 리모콘</p>
                 <br>
                 <br>
                 <p>삽입 가능한 사이드바 자리</p>
+                <br>
+                <br>
+                <p>리스트처럼 배너사이트 링크</p>
             </div>
         </div>
     </div>
@@ -81,12 +91,16 @@
         }
         
         //댓글에 적힌 시간 표기 변경
-        document.addEventListener("DOMContentLoaded", function() {  
+        document.addEventListener("DOMContentLoaded", function() {      //컨텐츠 로딩이 완료되면 시간을 바꿔라
             const commentTimes = document.querySelectorAll('.comment-time');
             commentTimes.forEach(timeElement => {
                 const time = timeElement.getAttribute('data-time');
                 timeElement.textContent = timeAgo(time);
             });
+            
+            const timeElement =document.querySelector('.post_time');
+            const postTime = timeElement.getAttribute('data-time');
+            timeElement.textContent = timeAgo(postTime);
         });
     </script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>

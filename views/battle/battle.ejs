@@ -102,7 +102,7 @@
                     <img class="pokemon-img" src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/132.png">
                     <img class="plate" src="https://raw.githubusercontent.com/seemsblue/imges/master/%EC%B4%88%EC%9B%90%EB%B0%94%EB%8B%A5.png">
 
-                    <div class="battle-pokemon-info ">
+                    <div class="battle-pokemon-info hidden">
                         <div class="name"></div>
                         <div class="hp-container">
                             <div class="hp"></div>
@@ -136,7 +136,7 @@
         <hr class="border border-secondary border-2 opacity-75 mb-0 mt-0">
 
 
-        <div class="action-btn-container position-relative" id="action-btn-container" style="height: 15%;">
+        <div class="action-btn-container position-relative hidden" id="action-btn-container" style="height: 15%;">
             <button id="type-attack-1" class="action-btn atk-btn position-absolute top-0 start-0" data-action="typeAttack1">타입공격1</button>
             <button id="type-attack-2" class="action-btn atk-btn position-absolute top-0 end-0" data-action="typeAttack2">타입공격2</button>
             <button class="action-btn atk-btn position-absolute bottom-0 start-0" data-action="normalAttack">일반공격</button>
@@ -605,7 +605,7 @@
 
         //배틀에 사용할 포켓몬 선택 픽 단계
         socket.on('battlePhase',()=>{
-            msgBox.insertAdjacentHTML('beforeend', `<div class="chat-box ex-chat text-end"><span>2명의 포켓몬을 선택하세요!</span></div>`)
+            msgBox.insertAdjacentHTML('beforeend', `<div class="chat-box ex-chat text-end"><span>시스템 : 2명의 포켓몬을 선택하세요!</span></div>`)
             let counter = 31;   //픽 제한시간(초)
             timerSpan.textContent = counter;
             selectFlag=false;

@@ -2,10 +2,10 @@
     <a href="/Home" class="home-link">Home</a>
     <a href="/List" class="list-link">게시판</a> 
     <a href="/write" class="write-link">글쓰기</a> 
-    <a href="/mypage" class="mypage-link">마이페이지</a> 
     <a href="/match" class="match-link">게임하기!</a>
 
     <% if (user) { %>
+        <a href="/mypage" class="mypage-link">마이페이지</a> 
         <a href="/logout">로그아웃</a>
     <% } else { %>
         <a href="/login">로그인/회원가입</a>

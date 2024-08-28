@@ -13,54 +13,225 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
     
     <link href="/css/main.css" rel="stylesheet">
-    <link href="/css/sticky.css" rel="stylesheet">
+    <link href="/css/home.css" rel="stylesheet">
     </head>
 <body>
     <%- include('component/nav.ejs')%>
 
-    <div class="stickybox" style="height: 5000px; background:grey; padding-top:1px;">
+    <div class="stickybox" style="height: 6000px; background:grey; padding-top:1px;">
+        <div class="top-box row" style="background-color: grey; height:1300px">
+
+            <div class="site-intro col-12" style="height: 30%;">
+                <h2 class="bagel text-warning">모의 배틀 커뮤니티에 오신걸 환영합니다!</h2>
+                <br>
+                <p>자유롭게 의견을 나누고 정보를 찾아보세요</p>
+                <br>
+                <p>간략화된 실시간 랭크배틀을 경험할 수 있습니다!</p>
+                <br>
+                <p>여러분의 전략을 테스트하고, 새로운 친구들과 경쟁하세요!</p>
+            </div>
+            
+            <div class="recent-posts col-4" style="height: 27%;">
+                <h2 class="hyeon text-info">최근 글</h2>
+                <br>
+                <ul>
+                    <% recentPosts.forEach(function(post) { %>
+                        <li style="margin-bottom: 20px;"><a href="/detail/<%= post._id %>" style="color: white;"><%= post.title %></a></li>
+                    <% }); %>
+                </ul>
+            </div>
+
+            <div class="user-feedback col-7 offset-1 row" style="height: 40%;">
+                <div class="col-6">
+                    <h2 class="today text-info"></h2>
+                    <h2 class="bagel text-info" >오늘의 포케</h2>
+                    <p class="pokeName text-warning">{포켓몬 이름}</p>
+                    <p class="pokeType">{노말} / {노말}</p>
+
+                    <p class="pokeHp">체력 : {}</p>
+                    <p class="pokeAtk">공격 : {}</p>
+                    <p class="pokeDef">방어 : {}</p>
+                    <p class="pokeSpecialAtk">특수공격 : {}</p>
+                    <p class="pokeSpecialDef">특수방어 : {}</p>
+                    <p class="pokeSpeed" style="color: pink;">스피드 : {}</p>
+                </div>
+                <div class="col-6" style="height: 70%; margin-top:40px">
+                    <img src="" id="pokeImg" style="width: 100%; max-width: 450px;">
+                </div>
+            </div>
+            
+            <div class="promo-banner col-12" style="height: 15%;">
+                <h2 class="hyeon text-warning">더 많은 것들이 있습니다!</h2>
+                <p>더 나은 사이트를 만들기 위한 건의나 버그 제보 등은 하단을 참조하세요</p>
+            </div>
+        </div>
+
         <div class="sbox first-box">
-            <div class="simage">
-                <a href="/List">
-                  <img src="https://raw.githubusercontent.com/seemsblue/imges/master/%EC%8B%9C%EC%97%B01.png" style="width: 100%;">
+            <div class="simage" id="image1">
+                <a href="/match">
+                    <img src="https://github.com/seemsblue/imges/blob/master/%ED%94%BD2.png?raw=true" style="width: 100%;">
                 </a>
-              </div>
-            <div class="text">
-                이것저것 기능 엄청다나고 설명하는 장소
-                <p>dd</p>
-                <p>dd</p>
-                <p>dd</p>
-                <p>dd</p>
-                <p>dd</p>
-                <p>dd</p>
-                <p style="margin-top: 900px;">아무튼 이 사이트 좀 쩌는듯</p>
-                <p>dd</p>
-                <p>dd</p>
             </div>
-        </div>
-
-        <div class="sbox second-box">
-            <div class="simage" style="float:right;">
-              <a href="/match">
-                <img src="https://raw.githubusercontent.com/seemsblue/imges/master/%EC%8B%9C%EC%97%B01.png" style="width: 100%;">
-              </a>
-            </div>
-            <div class="text" style="float:left;">
-                <p>여기는 게임 기능 소개하는 장소</p>
-            </div>
-        </div>
-
-        <div class="sbox third-box">
-            <div class="simage">
-                <img src="https://raw.githubusercontent.com/seemsblue/imges/master/%EC%8B%9C%EC%97%B01.png" style="width: 100%;">
-            </div>
-            <div class="text">
-                <p>여기는 건의사항이나 컨택트 넣을까?</p>
+            <div class="text" style="margin-top: 100px;">
+                <h1><i class="bi bi-people-fill"></i> 실시간 통신 1:1 게임</h1>
+                <h3><i class="bi bi-trophy-fill"></i> 최선의 조합을 선택해 승리하세요</h3>
+                <p><i class="bi bi-lightning-fill"></i> 평소에 사용하지 않는 포켓몬을 사용해보세요!</p>
+                <h3><i class="bi bi-shield-fill"></i> 타입 상성과 능력치를 익혀보세요</h3>
+                <p><i class="bi bi-speedometer2"></i> 스피드한 진행으로 포켓몬 자체의 능력치 파악을 빠르게 돕습니다</p>
             </div>
         </div>
         
+        <div class="sbox second-box">
+            <div class="simage" id="image2" style="float:right;">
+                <a href="/List">
+                    <img src="https://raw.githubusercontent.com/seemsblue/imges/master/%EC%8B%9C%EC%97%B01.png" style="width: 100%;">
+                </a>
+            </div>
+            <div class="text" style="float:left; margin-top: 100px;">
+                <h1><i class="bi bi-chat-dots-fill"></i> 게시판 지원</h1>
+                <h3><i class="bi bi-people-fill"></i> 다양한 이야기를 나누고 정보를 얻으세요</h3>
+                <p><i class="bi bi-chat-left-text-fill"></i> 아무 얘기나 할 수 있습니다</p>
+                <h3><i class="bi bi-award-fill"></i> 소통하고 기록을 자랑하세요</h3>
+                <p><i class="bi bi-lightbulb-fill"></i> 패착을 분석하면 다음에는 승리할 수 있습니다</p>
+            </div>
+        </div>
+        
+        <div class="sbox third-box">
+            <div class="simage" id="image3">
+                <a href="/mypage">
+                    <img src="https://github.com/seemsblue/imges/blob/master/%EB%A7%88%EC%9D%B4%ED%8E%98%EC%9D%B4%EC%A7%80.png?raw=true" style="width: 100%;">
+                </a>
+            </div>
+            <div class="text" style="margin-top:200px;">
+                <h1><i class="bi bi-shop-window"></i> 포인트 상점</h1>
+                <h3><i class="bi bi-coin"></i> 게임을 통해 포인트를 모아 사용합니다</h3>
+                <p><i class="bi bi-award-fill"></i> 아이콘을 장착해 자기과시하세요</p>
+            </div>
+        </div>
+        
+        
     </div>
     <%- include('component/footer.ejs')%>
+    <script>
+        const image1 = document.getElementById('image1');
+        const image2 = document.getElementById('image2');
+        const image3 = document.getElementById('image3');
+        image1.style.opacity = 0;
+
+        window.addEventListener('scroll', function() {
+            // 현재 스크롤 높이 계산
+            var scrollHeight = document.documentElement.scrollTop || window.scrollY;
+    
+            console.log(scrollHeight);  // 출력
+
+            if (scrollHeight >= 250 && scrollHeight <= 650) {
+                image1.style.opacity = (scrollHeight - 250) / 400;
+            }
+            // 높이 1500에서 2500 사이에서 투명도 1에서 0으로 감소
+            else if (scrollHeight >= 1800 && scrollHeight <= 2500) {
+                image1.style.opacity = (2500 - scrollHeight) / 700;
+            } 
+
+
+            // 높이 2000부터 image2 나타나기 시작, 3600부터 사라지기 시작
+            if(scrollHeight >= 3600){
+                image2.style.opacity =  (450 - (scrollHeight - 3600))/450; // 3600에서 사라지기 시작해서 4050에서 소멸
+            }
+            else if(scrollHeight >= 2000){
+                image2.style.opacity = (scrollHeight / 500) - 4; // 2000일때 0, 2500일때 1인 1차함수
+            }
+            else{
+                image2.style.opacity = 0;
+            }
+    
+            // 높이 3550부터 image3 나타나기 시작, 4050에서 완전 등장
+            if(scrollHeight >= 3600){
+                image3.style.opacity = (scrollHeight - 3550)/500;  // 3550에서 시작
+            }
+            else{
+                image3.style.opacity = 0;
+            }
+        });
+    </script>
+
+    <script>
+        // 타입 한글화 매핑
+        const typeTranslations = {
+            normal: "노말",
+            fire: "불꽃",
+            water: "물",
+            grass: "풀",
+            electric: "전기",
+            ice: "얼음",
+            fighting: "격투",
+            poison: "독",
+            ground: "땅",
+            flying: "비행",
+            psychic: "에스퍼",
+            bug: "벌레",
+            rock: "바위",
+            ghost: "고스트",
+            dragon: "드래곤",
+            dark: "악",
+            steel: "강철",
+            fairy: "페어리"
+        };
+
+        // 날짜 기반 시드 생성
+        function generateSeed() {
+            const date = new Date();
+            const year = date.getFullYear();
+            const month = date.getMonth() + 1;
+            const day = date.getDate();
+            return year * 10000 + month * 100 + day;
+        }
+
+        // 포켓몬 인덱스 결정
+        function getPokemonIndex(seed, maxIndex) {
+            return (seed % maxIndex) + 1; // 1부터 maxIndex까지의 값 반환
+        }
+
+        // PokeAPI에서 포켓몬 정보 불러오기
+        async function fetchPokemonData() {
+            const maxPokemonIndex = 1010; // 현재 PokeAPI 기준 포켓몬 최대 수
+            const seed = generateSeed();
+            const index = getPokemonIndex(seed, maxPokemonIndex);
+
+            try {
+                const response = await fetch(`https://pokeapi.co/api/v2/pokemon-species/${index}`);
+                const speciesData = await response.json();
+
+                // 포켓몬의 한국어 이름
+                const koreanName = speciesData.names.find(name => name.language.name === 'ko').name;
+
+                const pokemonResponse = await fetch(`https://pokeapi.co/api/v2/pokemon/${index}`);
+                const pokemonData = await pokemonResponse.json();
+
+                // 포켓몬 타입 한글화
+                const types = pokemonData.types.map(typeInfo => typeTranslations[typeInfo.type.name]).join(' / ');
+
+                // HTML 요소에 데이터 바인딩
+                document.querySelector('.pokeName').textContent = `이름: ${koreanName}`;
+                document.querySelector('.pokeType').textContent = `타입: ${types}`;
+                document.querySelector('.pokeHp').textContent = `체력: ${pokemonData.stats[0].base_stat}`;
+                document.querySelector('.pokeAtk').textContent = `공격: ${pokemonData.stats[1].base_stat}`;
+                document.querySelector('.pokeDef').textContent = `방어: ${pokemonData.stats[2].base_stat}`;
+                document.querySelector('.pokeSpecialAtk').textContent = `특수공격: ${pokemonData.stats[3].base_stat}`;
+                document.querySelector('.pokeSpecialDef').textContent = `특수방어: ${pokemonData.stats[4].base_stat}`;
+                document.querySelector('.pokeSpeed').textContent = `스피드: ${pokemonData.stats[5].base_stat}`;
+                document.getElementById('pokeImg').src = pokemonData.sprites.front_default;
+
+            } catch (error) {
+                console.error('포켓몬 정보를 불러오는 중 오류가 발생했습니다:', error);
+            }
+        }
+
+        // 페이지 로드할떄포켓몬 데이터 불러오기
+        document.addEventListener('DOMContentLoaded', fetchPokemonData);
+        //오늘채우기
+        document.querySelector('.today').textContent = `${new Date().getMonth() + 1}/${new Date().getDate()}`;
+    </script>
+    
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
 
 </body>

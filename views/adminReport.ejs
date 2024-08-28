@@ -3,36 +3,41 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Report</title>
-    <!-- Bootstrap CSS -->
+    <title>제보 관리자 페이지</title>
+    <link href="/css/main.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body>
     <%- include('component/nav.ejs')%>
     <div class="container mt-5">
-        <h2>Reports</h2>
+        <h2>제보내역</h2>
         <div class="table-responsive">
             <table class="table table-striped">
                 <thead>
                     <tr>
-                        <th>User</th>
-                        <th>Nickname</th>
-                        <th>Title</th>
-                        <th>Content</th>
+                        <th>제목</th>
+                        <th>닉네임</th>
+                        <th>고유ID</th>
                         <th>Time</th>
                         <th>기타 징지리링</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <% reports.forEach(report => { %>
-                        <tr>
-                            <td><%= report.user %></td>
-                            <td><%= report.nickname %></td>
+                    <% reports.forEach((report, index) => { %>
+                        <tr class="clickable-row" onclick="toggleContent('<%= index %>')">
                             <td><%= report.title %></td>
-                            <td><%= report.content %></td>
+                            <td><%= report.nickname %></td>
+                            <td><%= report.user %></td>
                             <td><%= report.time %></td>
                             <td>
-                                <button class="btn btn-danger" onclick="confirmDelete('<%= report._id %>')">Delete</button>
+                                <button class="btn btn-danger" onclick="event.stopPropagation(); confirmDelete('<%= report._id %>')">Delete</button>
+                            </td>
+                        </tr>
+                        <tr id="content-row-<%= index %>" class="collapse">
+                            <td colspan="6">
+                                <div class="p-3">
+                                    <%- report.content %>
+                                </div>
                             </td>
                         </tr>
                     <% }); %>
@@ -44,19 +49,30 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
     <script>
+        //컨텐츠 부분 접었다 펴기
+        function toggleContent(index) {
+            const contentRow = document.getElementById(`content-row-${index}`);
+            const isCollapsed = contentRow.classList.contains('collapse');
+            if (isCollapsed) {
+                contentRow.classList.remove('collapse');
+            } else {
+                contentRow.classList.add('collapse');
+            }
+        }
+
         function confirmDelete(reportId) {
             if (confirm("Are you sure you want to delete this report?")) {
                 deleteReport(reportId);
             }
         }
 
+        //삭제(제보확인완료) 버튼
         async function deleteReport(reportId) {
             try {
                 const response = await fetch('/delete-report', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'CSRF-Token': '<%= csrfToken %>' // CSRF 토큰 추가 필요 시
                     },
                     body: JSON.stringify({ id: reportId })
                 });

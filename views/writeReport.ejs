@@ -15,15 +15,15 @@
     <div class="mx-auto mt-3" style="width: 95%;">
         <form action="/write" method="POST" class="mt-1">
             <select name="category" class="form-select mt-2 hidden" aria-label="Default select" style="width: 300px;">
-                <option value="report">제보 게시판</option>
+                <option value="report">오류제보&건의사항 게시판</option>
             </select>
             <div class="input-group mb-3 mt-1">
                 <span class="input-group-text">제목</span>
-                <input name="title" type="text" class="form-control" aria-label="Amount (to the nearest dollar)">
+                <input name="title" type="text" class="form-control" aria-label="Amount (to the nearest dollar)" placeholder="제목을 입력하세요!">
               </div>
             <div id="editor-container" class="mt-1"></div>
             <input type="hidden" name="editorContent" id="editorContent">
-            <button type="submit" class="btn btn-success mt-3">건의하기</button>
+            <button type="submit" class="btn btn-success mt-3">제출하기</button>
         </form>
     </div>
     <!-- Quill JS -->
@@ -44,7 +44,8 @@
                             image: imageHandler // 이미지 버튼 클릭 시 실행되는 핸들러
                         }
                     }
-                }
+                },
+                placeholder: '빠른 시일 내에 확인하겠습니다 감사합니다!'
             });
 
             function countImages() {    //이미지 몇개임?

@@ -476,13 +476,14 @@ body{
 
 }
 .op-chat{
-    margin-right: 6px;
     background-color: #318aff; 
+    margin-left: auto;
+    margin-right: 9px;
 }
 .ex-chat{
     margin-left: 6px;
     margin-right: 6px;
-    background-color: #ff2424; 
+    background-color: orange; 
 }
 
 .hidden {
@@ -636,4 +637,10 @@ body{
     border: solid white;
     border-width: 0 2px 2px 0;
     transform: rotate(45deg);
+}
+
+#pick-screen {
+    background-image: url(https://github.com/seemsblue/imges/blob/master/%ED%94%BD%20%EB%B0%B0%EA%B2%BD.png?raw=true);
+    background-size: 100% 100%;
+    background-position: center;
 }

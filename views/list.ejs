@@ -30,19 +30,45 @@
     .custom-link:hover::after {
         opacity: 1;
     }
+
+    .list-box p {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    @media (max-width: 767.98px) { /* md 사이즈 이하에서 적용 */
+      #category-side {
+          width: 100%;
+      }
+
+      #category-content {
+          display: flex;
+          justify-content: space-around;
+          flex-wrap: wrap;
+          padding: 10px 0;
+      }
+
+      .category-btn {
+          flex: 1 1 auto;
+          text-align: center;
+          padding: 5px 10px;
+          margin: 5px 0;
+      }
+  }
   </style>
 </head>
 <body style="height: 100vh;background-color: antiquewhite;">
 
   <%- include('component/nav.ejs')%>
   <div class="post-box row">
-    <div id="category-side" class="col-3 col-lg-2 col-xxl-2">
-      <div id="category-content">
+    <div id="category-side" class="col-md-3 col-lg-2 col-xxl-2">
+      <div id="category-content" class="d-md-block d-flex justify-content-center flex-wrap">
+        <a id="category-btn" href="/List" >전체</a>
         <a id="category-btn" href="/search?category=announcement" >공지사항</a>
         <a id="category-btn" href="/search?category=general" >자유게시판</a>
         <a id="category-btn" href="/search?category=qna" >질문</a>
         <a id="category-btn" href="/search?category=record" >대결기록</a>
-
       </div>
     </div>
 
@@ -52,7 +78,7 @@
       <form id="search" class="d-flex ms-3 mt-3" style="width: 100%;">
         <input class="form-control me-2 search" type="search" placeholder="제목" aria-label="Search">
         <select class="form-select me-2 category" aria-label="Category" style="width: 20%;">
-          <option value="" selected>전체</option>  <!-- 기본값: 전체 -->
+          <option value="" selected>전체</option>  <!-- 기본값 전체 -->
           <option value="announcement">공지사항</option>
           <option value="general">자유게시판</option>
           <option value="qna">질문</option>
@@ -61,12 +87,15 @@
         </select>
         <button class="btn btn-outline-success search-send" type="button" style="width: 15%; margin-right:18px;">검색</button>
       </form>
+  
       <script>
         document.querySelector(".search-send").addEventListener('click', function(event){
           event.preventDefault(); // 폼 제출 막기
           let val = document.querySelector('.search').value;
           let category = document.querySelector('#search .category').value;
-          if(val.length<=2){
+          console.log(val.length);
+          if(val.length>=2){
+            console.log('검색!');
             location.href = 
             '/search?val=' + encodeURIComponent(val) + 
             '&category=' + encodeURIComponent(category);
@@ -91,15 +120,33 @@
   
       <div class="post-container d-flex justify-content-center mt-5">
         <div class="white-bg" style="width: 90%;">
-          <%for(let i=0;i < posts.length;i++){%>
-          <div class="list-box mt-1">
-            <div class="d-flex align-items-center mb-2 mt-2">
-              <a href="/detail/<%=posts[i]._id%>" class="custom-link fs-4 me-2"><%=posts[i].title %></a>
-              <span class="ms-auto" data-id="<%=posts[i]._id%>"><%=posts[i].nickname%></span>
+          <div class="list-box table-header p-2" style="background-color: #f8f9fa; border-bottom: 1px solid #dee2e6;">
+            <div class="d-flex align-items-center">
+                <p class="fw-bold mb-0 me-auto" style="flex: 2;">Title</p>
+                <p class="fw-bold mb-0 text-center" style="width: 60px;">분류</p>
+                <p class="fw-bold mb-0 text-center" style="width: 80px;">시간</p>
+                <p class="fw-bold mb-0 text-center" style="width: 90px;">작성</p>
             </div>
-            <p><%= (posts[i].category)%></p>
           </div>
-        <%}%>
+          <% for (let i = 0; i < posts.length; i++) { %>
+            <div class="list-box mt-0 p-1" style="cursor: pointer;" onclick="window.location.href='/detail/<%= posts[i]._id %>';">
+              <div class="d-flex align-items-center">
+                  <p class="me-auto" style="flex: 2;">
+                      <a href="/detail/<%= posts[i]._id %>" class="custom-link fs-4"><%= posts[i].title %></a>
+                  </p>
+                  <p class="post-category text-center mb-0" data-category="<%= posts[i].category %>" style="width: 60px;">
+                      <%= posts[i].category %>
+                  </p>
+                  <p class="post-time text-center mb-0" data-time="<%= posts[i].time %>" style="width: 80px;">
+                      <%= posts[i].time %>
+                  </p>
+                  <p class="text-center mb-0" style="width: 90px;" data-id="<%= posts[i]._id %>">
+                      <%= posts[i].nickname %>
+                  </p>
+              </div>
+            </div>
+          <% } %>
+    
         </div>
       </div>
       <a href="/write"><button class="btn btn-outline-success search-send" type="button" style="width: 23%; margin-right:18px;">✏️글작성</button></a>
@@ -133,17 +180,68 @@
   
 
   <script>
-    for(let i =0;i<'<%=posts.length%>';i++){
-    document.querySelectorAll('.delete')[i].addEventListener('click',function(e){
-      fetch('/delete?docid='+e.target.dataset.id,{
-        method:'DELETE',
-      })
-      .then((r)=>r.text())
-      .then((r)=>{
-        e.target.parentElement.parentElement.style.display='none'
-      })
-    })
+  //시간 정보를 몇시간 전 몇일 전으로 바꾸는 함수 (댓글에서 썼던거랑 같음)
+  function timeAgo(date) {
+    const now = new Date();
+    const seconds = Math.floor((now - new Date(date)) / 1000);
+    let interval = seconds / 31536000;
+
+    if (interval > 1) {
+        return Math.floor(interval) + '년 전';
+    }
+    interval = seconds / 2592000;
+    if (interval > 1) {
+        return Math.floor(interval) + '달 전';
+    }
+    interval = seconds / 86400;
+    if (interval > 1) {
+        return Math.floor(interval) + '일 전';
+    }
+    interval = seconds / 3600;
+    if (interval > 1) {
+        return Math.floor(interval) + '시간 전';
+    }
+    interval = seconds / 60;
+    if (interval > 1) {
+        return Math.floor(interval) + '분 전';
+    }
+    return Math.floor(seconds) + '초 전';
+}
+
+//이건 카테고리 영문명을 한글로 바꾸는 함수
+function changeCategory(categoryEN) {
+  const category = categoryEN;
+
+  if (category == 'announcement') {
+      return '공지';
   }
+  if (category == 'general') {
+    return '자유';
+  }
+  if (category == 'qna') {
+    return '질문';
+  }
+  if (category == 'record') {
+    return '전적';
+  }
+}
+//글 정보에 적힌 시간 표기 변경&카테고리 한글화
+document.addEventListener("DOMContentLoaded", function() {  //컨텐츠 로딩이 완료되면 시간을 바꿔라
+
+  //시간변환
+  const contentTimes = document.querySelectorAll('.post-time');
+  contentTimes.forEach(timeElement => {
+      const time = timeElement.getAttribute('data-time');
+      timeElement.textContent = timeAgo(time);
+  });
+
+  //카테고리 변환
+  const contentCategories = document.querySelectorAll('.post-category');
+  contentCategories.forEach(e => {
+      const category = e.getAttribute('data-category');
+      e.textContent = changeCategory(category);
+  });
+});
   </script>
   <script src="/bootstrap/bootstrap.bundle.min.js"></script>
 </body>
