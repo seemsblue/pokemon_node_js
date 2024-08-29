@@ -6,71 +6,242 @@
     <title>Document</title>
     <link href="/css/main.css" rel="stylesheet">
     <link href="/bootstrap/bootstrap.min.css" rel="stylesheet">
+
+    <style>
+      body{}
+      .custom-link {
+        position: relative;
+        color: #6c757d; 
+        text-decoration: none;
+    }
+
+    .custom-link::after {
+        content: '';
+        position: absolute;
+        width: 100%;
+        height: 1px;
+        bottom: -2px;
+        left: 0;
+        background-color: #364655; 
+        opacity: 0;
+        transition: opacity 0.3s;
+    }
+
+    .custom-link:hover::after {
+        opacity: 1;
+    }
+
+    .list-box p {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    @media (max-width: 767.98px) { /* md 사이즈 이하에서 적용 */
+      #category-side {
+          width: 100%;
+      }
+
+      #category-content {
+          display: flex;
+          justify-content: space-around;
+          flex-wrap: wrap;
+          padding: 10px 0;
+      }
+
+      .category-btn {
+          flex: 1 1 auto;
+          text-align: center;
+          padding: 5px 10px;
+          margin: 5px 0;
+      }
+  }
+  </style>
 </head>
-<body>
+<body style="height: 100vh;background-color: antiquewhite;">
 
-  <%- include('nav.ejs')%>
-
-  <form class="d-flex ms-3 mt-3" style="width: 50%;">
-    <input class="form-control me-2 seach" type="search" placeholder="제목" aria-label="Search">
-    <button class="btn btn-outline-success search-send" type="submit" style="width: 10%;">검색</button>
-  </form>
-  <script>
-    document.querySelector(".search-send").addEventListener('click',function(){
-      let val = document.querySelector('.search').value
-      console.log(val)
-      location.href='/search?val='+val
-    })
-  </script>
-
-  <div class="d-flex justify-content-center mt-5">
-    <div class="white-bg" style="width: 90%;">
-      <%for(let i=0;i < posts.length;i++){%>
-      <div class="list-box mt-1">
-        <h4 class="mt-1">
-          <a href="/detail/<%=posts[i]._id%>"><%= JSON.stringify(posts[i].title) %></a>
-          <a href="/edit/<%=posts[i]._id%>">✏️</a>
-          <span class="delete" data-id="<%=posts[i]._id%>">tt</span>
-        </h4>
-        <p><%= (posts[i].category)%></p>
+  <%- include('component/nav.ejs')%>
+  <div class="post-box row">
+    <div id="category-side" class="col-md-3 col-lg-2 col-xxl-2">
+      <div id="category-content" class="d-md-block d-flex justify-content-center flex-wrap">
+        <a id="category-btn" href="/List" >전체</a>
+        <a id="category-btn" href="/search?category=announcement" >공지사항</a>
+        <a id="category-btn" href="/search?category=general" >자유게시판</a>
+        <a id="category-btn" href="/search?category=qna" >질문</a>
+        <a id="category-btn" href="/search?category=record" >대결기록</a>
       </div>
-    <%}%>
+    </div>
+
+    <div id="middle-side" class="container col-9 col-lg-6 offset-lg-1 col-xxl-5 offset-xxl-1">
+      <a id="category-text"></a>  <!-- 카테고리 필터링 시 여기에 텍스트 보임 -->
+
+      <form id="search" class="d-flex ms-3 mt-3" style="width: 100%;">
+        <input class="form-control me-2 search" type="search" placeholder="제목" aria-label="Search">
+        <select class="form-select me-2 category" aria-label="Category" style="width: 20%;">
+          <option value="" selected>전체</option>  <!-- 기본값 전체 -->
+          <option value="announcement">공지사항</option>
+          <option value="general">자유게시판</option>
+          <option value="qna">질문</option>
+          <option value="record">대결기록</option>
+          <!-- 여따가 카테고리 계속 추가 -->
+        </select>
+        <button class="btn btn-outline-success search-send" type="button" style="width: 15%; margin-right:18px;">검색</button>
+      </form>
+  
+      <script>
+        document.querySelector(".search-send").addEventListener('click', function(event){
+          event.preventDefault(); // 폼 제출 막기
+          let val = document.querySelector('.search').value;
+          let category = document.querySelector('#search .category').value;
+          console.log(val.length);
+          if(val.length>=2){
+            console.log('검색!');
+            location.href = 
+            '/search?val=' + encodeURIComponent(val) + 
+            '&category=' + encodeURIComponent(category);
+          }
+          else{
+            alert('2글자 이상 입력해주세요');
+          }
+        });
+        let category = "<%= selectedCategory %>"
+        console.log(category);
+        const categoryTxt = document.querySelector('#category-text')
+        if(category == 'general'){
+          categoryTxt.textContent = '자유게시판';
+        }else if(category == 'announcement'){
+          categoryTxt.textContent = '공지사항';
+        }else if(category == 'qna'){
+          categoryTxt.textContent = '질문게시판';
+        }else if(category == 'record'){
+          categoryTxt.textContent = '대전기록';
+        }
+      </script>
+  
+      <div class="post-container d-flex justify-content-center mt-5">
+        <div class="white-bg" style="width: 90%;">
+          <div class="list-box table-header p-2" style="background-color: #f8f9fa; border-bottom: 1px solid #dee2e6;">
+            <div class="d-flex align-items-center">
+                <p class="fw-bold mb-0 me-auto" style="flex: 2;">Title</p>
+                <p class="fw-bold mb-0 text-center" style="width: 60px;">분류</p>
+                <p class="fw-bold mb-0 text-center" style="width: 80px;">시간</p>
+                <p class="fw-bold mb-0 text-center" style="width: 90px;">작성</p>
+            </div>
+          </div>
+          <% for (let i = 0; i < posts.length; i++) { %>
+            <div class="list-box mt-0 p-1" style="cursor: pointer;" onclick="window.location.href='/detail/<%= posts[i]._id %>';">
+              <div class="d-flex align-items-center">
+                  <p class="me-auto" style="flex: 2;">
+                      <a href="/detail/<%= posts[i]._id %>" class="custom-link fs-4"><%= posts[i].title %></a>
+                  </p>
+                  <p class="post-category text-center mb-0" data-category="<%= posts[i].category %>" style="width: 60px;">
+                      <%= posts[i].category %>
+                  </p>
+                  <p class="post-time text-center mb-0" data-time="<%= posts[i].time %>" style="width: 80px;">
+                      <%= posts[i].time %>
+                  </p>
+                  <p class="text-center mb-0" style="width: 90px;" data-id="<%= posts[i]._id %>">
+                      <%= posts[i].nickname %>
+                  </p>
+              </div>
+            </div>
+          <% } %>
+    
+        </div>
+      </div>
+      <a href="/write"><button class="btn btn-outline-success search-send" type="button" style="width: 23%; margin-right:18px;">✏️글작성</button></a>
+
+      <div class="btn-container d-flex justify-content-center mt-5">
+        <div class="btn-group me-2" role="group" aria-label="Second group" style="width: 170px;">
+          <%if(pagination.now>3){%>
+            <button class="page-btn btn btn-outline-info" onclick="window.location.href='/list/<%= pagination.now - 3 %>'" type="button"><</button>
+          <%}%>
+          <%for(let i=2;i>0;i--){%>
+            <%if(pagination.now-i<=0)continue;%>
+              <button class="page-btn btn btn-outline-info" onclick="window.location.href='/list/<%= pagination.now - (i) %>'" type="button"><%= pagination.now - (i) %></button>
+          <%}%>
+            <button class="page-btn btn btn-outline-info disabled" type="button"><%= pagination.now%></button>
+          <%for(let i=0;i < (pagination.next) ;i++){%>
+            <%if(i>=2)break;%>
+            <button class="page-btn btn btn-outline-info" onclick="window.location.href='/list/<%= pagination.now + (i + 1) %>'" type="button"><%= pagination.now + (i + 1) %></button>
+          <%}%>
+          <%if(pagination.next>2){%>
+            <button class="page-btn btn btn-outline-info" onclick="window.location.href='/list/<%= pagination.now + 3 %>'" type="button">></button>
+          <%}%>
+        </div>
+      </div>
+    </div>
+    <div id="right-side" class="d-none d-lg-block col-lg-3 col-xxl-3">
+      <div class="side-controller float-end border rounded-start-2 m-2 p-2">
+          <img style="width: 98%;" src="https://raw.githubusercontent.com/seemsblue/imges/master/%EC%82%AC%EC%9D%B4%EB%93%9C%20%EC%9D%B4%EB%AF%B8%EC%A7%80.png">
+      </div>
     </div>
   </div>
   
 
-  <div class="d-flex justify-content-center mt-5">
-    <div class="btn-group me-2" role="group" aria-label="Second group" style="width: 170px;">
-      <%if(pagination.now>3){%>
-        <button class="page-btn btn btn-outline-info" onclick="window.location.href='/list/<%= pagination.now - 3 %>'" type="button"><</button>
-      <%}%>
-      <%for(let i=2;i>0;i--){%>
-        <%if(pagination.now-i<=0)continue;%>
-          <button class="page-btn btn btn-outline-info" onclick="window.location.href='/list/<%= pagination.now - (i) %>'" type="button"><%= pagination.now - (i) %></button>
-      <%}%>
-        <button class="page-btn btn btn-outline-info disabled" type="button"><%= pagination.now%></button>
-      <%for(let i=0;i < (pagination.next) ;i++){%>
-        <%if(i>=2)break;%>
-        <button class="page-btn btn btn-outline-info" onclick="window.location.href='/list/<%= pagination.now + (i + 1) %>'" type="button"><%= pagination.now + (i + 1) %></button>
-      <%}%>
-      <%if(pagination.next>2){%>
-        <button class="page-btn btn btn-outline-info" onclick="window.location.href='/list/<%= pagination.now + 3 %>'" type="button">></button>
-      <%}%>
-    </div>
-  </div>
-
   <script>
-    for(let i =0;i<'<%=posts.length%>';i++){
-    document.querySelectorAll('.delete')[i].addEventListener('click',function(e){
-      fetch('/delete?docid='+e.target.dataset.id,{
-        method:'DELETE',
-      })
-      .then((r)=>r.text())
-      .then((r)=>{
-        e.target.parentElement.parentElement.style.display='none'
-      })
-    })
+  //시간 정보를 몇시간 전 몇일 전으로 바꾸는 함수 (댓글에서 썼던거랑 같음)
+  function timeAgo(date) {
+    const now = new Date();
+    const seconds = Math.floor((now - new Date(date)) / 1000);
+    let interval = seconds / 31536000;
+
+    if (interval > 1) {
+        return Math.floor(interval) + '년 전';
+    }
+    interval = seconds / 2592000;
+    if (interval > 1) {
+        return Math.floor(interval) + '달 전';
+    }
+    interval = seconds / 86400;
+    if (interval > 1) {
+        return Math.floor(interval) + '일 전';
+    }
+    interval = seconds / 3600;
+    if (interval > 1) {
+        return Math.floor(interval) + '시간 전';
+    }
+    interval = seconds / 60;
+    if (interval > 1) {
+        return Math.floor(interval) + '분 전';
+    }
+    return Math.floor(seconds) + '초 전';
+}
+
+//이건 카테고리 영문명을 한글로 바꾸는 함수
+function changeCategory(categoryEN) {
+  const category = categoryEN;
+
+  if (category == 'announcement') {
+      return '공지';
   }
+  if (category == 'general') {
+    return '자유';
+  }
+  if (category == 'qna') {
+    return '질문';
+  }
+  if (category == 'record') {
+    return '전적';
+  }
+}
+//글 정보에 적힌 시간 표기 변경&카테고리 한글화
+document.addEventListener("DOMContentLoaded", function() {  //컨텐츠 로딩이 완료되면 시간을 바꿔라
+
+  //시간변환
+  const contentTimes = document.querySelectorAll('.post-time');
+  contentTimes.forEach(timeElement => {
+      const time = timeElement.getAttribute('data-time');
+      timeElement.textContent = timeAgo(time);
+  });
+
+  //카테고리 변환
+  const contentCategories = document.querySelectorAll('.post-category');
+  contentCategories.forEach(e => {
+      const category = e.getAttribute('data-category');
+      e.textContent = changeCategory(category);
+  });
+});
   </script>
   <script src="/bootstrap/bootstrap.bundle.min.js"></script>
 </body>

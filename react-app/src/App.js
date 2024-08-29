@@ -6,10 +6,10 @@ import Match from "./routes/Match.js";
 
 function App() {
   return (
-    <Router>
+    <Router basename="/react">
       <Routes>
-        <Route path={"/react-match"} element={<Match />} />
-        <Route path={process.env.PUBLIC_URL + "/"} element={<Home />} />
+        <Route path="/" element={<Home />} />
+        <Route path="/match" element={<Match />} />
       </Routes>
     </Router>
   );

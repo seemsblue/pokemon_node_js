@@ -1,5 +1,7 @@
 const express = require('express');
 const path = require('path');
+const app = express();
+
 const { MongoClient, ObjectId } = require('mongodb');
 const methodOverride = require('method-override');
 const bcrypt = require('bcrypt');
@@ -12,7 +14,6 @@ const multerS3 = require('multer-s3');
 const session = require('express-session');
 const passport = require('passport');
 const LocalStrategy = require('passport-local');
-const app = express();
 
 //실시간 통신 소켓 관련
 const { createServer } = require('http'); //이 모듈을 사용하는 라우트 불러오기 위에 먼저 적어야 함 (상호참조는 되는데 이런거 주의)
@@ -25,7 +26,8 @@ var cors = require('cors');
 app.use(cors());
 
 //const url = process.env.DB_URL;
-let connectDB = require('./database.js')
+let connectDB = require('./database.js');
+const { time } = require('console');
 let db;
 
 
@@ -62,17 +64,22 @@ const uploadTMP = multer({
 });
 
 app.use(methodOverride('_method'));
-app.use(express.static(__dirname + '/public'));
-app.use(express.static(path.join(__dirname, 'react-app/build'))); //리액트 파일주소
+
 app.set('view engine', 'ejs');
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// '/'로 접속하면 일반 public 폴더(현재 디렉토리), '/react' 로 접속하면 react/build의 디렉토리
+app.use('/', express.static( path.join(__dirname, 'public') ));
+// app.use('/react', express.static( path.join(__dirname, 'react-app/build') ));
+
+//app.use(express.static(path.join(__dirname, 'react-app/build')));   //리액트가 전체 라우팅 담당할때만 쓰셈
 
 const sessionMiddleware = session({
   secret: '1234', //암호화 비번인데 지금은 안쓸거임
   resave: false,
   saveUninitialized: false,
-  cookie: { maxAge: 60 * 1000 * 60 * 24 * 30 },
+  cookie: { maxAge: 60 * 1000 * 60 * 24 * 30 }, //60초 -> 60분 -> 24시간 -> 30일
   store: MongoStore.create({
     mongoUrl: process.env.DB_URL,
     dbName: 'pokemon'
@@ -109,53 +116,89 @@ passport.deserializeUser(async (user, done) => {
   });
 });
 
-
-
 io.engine.use(sessionMiddleware);
-
-
 
 
 // 세팅 끝
 
 //미들웨어 => 사실 미들웨어도 middlewares.js 파일로 분리하는 편이 관리가 편하다고 함 시간나면 그렇게 하기
+
 function checkAuth(req,res,next){ //로그인이 필요한 곳에 가져다 쓰는 미들웨어 / 로그아웃 상태일 시 /login으로 redirect
   if(req.isAuthenticated()) {
     return next();
   }
-  res.redirect('/login');
+  else{
+    res.redirect('/login');
+  }
+}
+
+function checkAdmin(req,res,next){ //관리자 권한(admin) 필요한 곳에 가져다 쓰는 미들웨어
+  if(!req.isAuthenticated()) {  //로그인 여부부터 확인
+    res.redirect('/login');
+  }
+
+  if(req.user.rank=='admin') {   //그 다음 관리자 확인
+    return next();
+  }
+  else{
+    res.redirect('/home');
+  }
 }
 
 function checkGuest(req,res,next){ //로그인 상태일 시 '/'으로 redirect
   if(req.isAuthenticated()) {
     return res.redirect('/');
   }
-
   next();
 }
-module.exports = { checkAuth, checkGuest, io ,};   //exports는 파일당 한번만
 
-//라우트
-app.use('/', require('./routes/forum.js'))
-app.use('/', require('./routes/battle.js'))
+// '/list' 경로로 들어오는 요청에 대한 미들웨어
+app.use('/list', (req, res, next) => {  
+  //console.log(new Date());
+  next(); //다음 단계 실행(없으면 미들웨어단계에서 끝남)
+});
 
-
-app.use('/list', (req, res, next) => {
-  console.log(new Date());
+//모든 경로에 대해서 로그인 여부 확인하는 미들웨어()
+app.use((req, res, next) => {
+  res.locals.user = req.user;
   next();
 });
 
-
+module.exports = { checkAuth, checkGuest, io ,};   //미들웨어 exports는 파일당 한번만
 //미들웨어 끝
 
-app.get('/',(request,response)=>{
-  console.log(request.user)
-  response.render('home.ejs')
+//라우팅
+app.get(['/', '/home'], async (req, res) => {
+  try {
+    // 최신 5개 글 가져오기
+    let recentPosts = await db.collection('general forum')
+        .find({}, {
+            projection: {
+                title: 1,
+                _id: 1 // 필요한 필드만 포함
+            }
+        })
+        .sort({ _id: -1 }) // 최신 글 순으로 정렬
+        .limit(5) // 5개의 글만 가져오기
+        .toArray();
+
+    // home.ejs로 데이터 전달
+    res.render('home.ejs', { recentPosts: recentPosts });
+  } 
+  catch (error) {
+    console.error('홈 화면 로드 중 오류 발생:', error);
+    res.status(500).send('서버 오류');
+  }
 })
-app.get('/home',(request,response)=>{
-  console.log(request.user)
-  response.render('home.ejs')
+
+//추후 github와 연동해서 업데이트 내용 알아서 가져오게
+app.get('/update',async(req,res)=>{
+  res.render('update.ejs');
 })
+
+app.use('/', require('./routes/forum.js')) //  '/'경로에 대해 아래 파일들에서 정의된 경로도 사용한다는 뜻
+app.use('/', require('./routes/battle.js'))
+
 
 app.get('/login',checkGuest,(req,res)=>{
   if (req.isAuthenticated()) {
@@ -187,7 +230,7 @@ app.get('/logout', function(req, res, next) {
 app.get('/register',checkGuest,(req,res)=>{
   let msg = '당장 이 문서에 서명하시오';
   if(req.query.msg=='nickname'){
-    msg='닉네임이 중복이네요'
+    msg='닉네임이 중복이거나 잘못된 전송이네요'
   }
   else if(req.query.msg=='password'){
     msg='비번으로 그런거 하지 마세요'
@@ -204,11 +247,20 @@ app.post('/register',async (req,res)=>{
   let nickname = req.body.nickname
   let password = await bcrypt.hash(req.body.password,10)
 
+  if(nickname.length<2){
+    res.redirect('/register?msg=nickname');
+    return;
+  }
+  else if(password.length<3){
+    res.redirect('/register?msg=password');
+    return;
+  }
+
   if(await db.collection('user').findOne({email:email}) != null){
     res.redirect('/register?msg=email');
     return;
   }
-  else if(await db.collection('user').findOne({nickname:nickname}) != null){
+  else if(await db.collection('user').findOne({nickname:nickname}) != null){  //닉네임이 중복이라면
     res.redirect('/register?msg=nickname');
     return;
   }
@@ -220,15 +272,155 @@ app.post('/register',async (req,res)=>{
       rank:'normal',
       icon:'/image/램프라.jpg',
       point:10,
+      time: new Date(),
   })
 
   res.redirect('/login');
   
 })
 
-app.get('/mypage',checkAuth,(req, res) =>{
-  res.render('mypage.ejs',{user:req.user})
+app.get('/mypage',checkAuth,async (req, res) =>{
+  console.log(req.user);
+  const userId=req.user._id;
+  const user = await db.collection('user').findOne({ _id: new ObjectId(userId) });  //새로 불러와야 세션보다 최신 상태 유지함 필요함
+  user.purchase = user.purchase || [];  //구매 항목이 없으면 빈배열으로라도 전달 << 이 방법 다 적용해야 할듯 이게 짱이다 어떤 상황에서도 
+  res.render('mypage.ejs',{user:user})
 });
+
+//아이콘 구매 요청
+app.post('/purchase-icon', async (req, res) => {
+  const { iconName, iconCost } = req.body;
+  const userId = req.user._id;
+
+  try {
+      // 유저 정보 가져오기
+      const user = await db.collection('user').findOne({ _id: new ObjectId(userId) });
+
+      if (!user) {
+          return res.status(404).json({ success: false, message: '유저를 찾을 수 없습니다.' });
+      }
+
+      // 유저의 구매 리스트 가져오기
+      const updatedPurchase = user.purchase || [];
+
+      // 이미 구매한 아이콘인지 확인
+      if (updatedPurchase.includes(iconName)) {
+          return res.status(400).json({ success: false, message: '이미 구매한 아이콘입니다.' });
+      }
+
+      // 포인트가 충분한지 확인
+      if (user.point < iconCost) {
+          return res.status(400).json({ success: false, message: '포인트가 부족합니다.' });
+      }
+
+      // 포인트 차감 및 아이콘 추가
+      updatedPurchase.push(iconName);
+      let cPoint  =user.point - iconCost;
+      await db.collection('user').updateOne(
+          { _id: new ObjectId(userId) },
+          {
+            $set: {
+              point: cPoint, // 포인트 업데이트
+              purchase: updatedPurchase // 구매 리스트 업데이트
+          }
+          }
+      );
+      res.json({ success: true });
+  } catch (error) {
+      console.error('Error:', error);
+      res.status(500).json({ success: false, message: '구매 처리 중 오류 발생!!!!!!!!!' });
+  }
+});
+
+app.post('/update-icon', checkAuth, async (req, res) => {
+  const userId = req.user._id; // 로그인된 사용자 ID (세션에서 가져옴)
+  const { icon } = req.body;
+
+  try {
+    // 유저가 실제로 소유한 아이콘인지 확인
+    const user = await db.collection('user').findOne({ _id: new ObjectId(userId) });
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: '유저를 찾을 수 없습니다.' });
+    }
+
+    if (!user.purchase.includes(icon)) {
+      return res.status(400).json({ success: false, message: '아이콘을 구매하세여' });
+    }
+
+    // 유저의 현재 아이콘 업데이트
+    await db.collection('user').updateOne(
+      { _id: new ObjectId(userId) },
+      { $set: { currentIcon: icon } }
+    );
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error:', error);
+    res.status(500).json({ success: false, message: '아이콘 변경 중 오류가 발생했습니다.' });
+  }
+});
+
+//닉네임 변경
+app.post('/update-nickname',async(req,res)=>{
+  const userId = req.user._id;
+  const nickname = req.body.nickname;
+  if(req.body.nickname.length>8 || req.body.nickname.length<2){ //닉네임이 너무 길거나 짧다면
+    return res.status(400).json({ success: false, message: '닉네임 길이가 이상한데요' });
+  } else if(await db.collection('user').findOne({nickname:nickname}) != null){
+    return res.status(400).json({ success: false, message: '닉네임이 중복이네요' });
+  }
+
+  try {
+    await db.collection('user').updateOne(
+        { _id: new ObjectId(userId) },
+        { $set: { nickname: req.body.nickname } }
+    );
+    res.json({ success: true });
+} catch (error) {
+    console.error('Error:', error);
+    res.status(500).json({ success: false, message: '닉네임 변경 중 오류 발생' });
+}
+})
+
+//프로필 사진 프사 변경
+app.post('/upload-icon', uploadTMP.single('image'), async (req, res) => {
+  const userId = req.user._id;
+
+  if (!req.file || !req.file.location) {
+      return res.status(400).send('이미지 업로드 실패');
+  }
+
+  const iconUrl = req.file.location;
+
+  try {
+      // Update the user's icon field with the uploaded image URL
+      await db.collection('user').updateOne(
+          { _id: new ObjectId(userId) },
+          { $set: { icon: iconUrl } }
+      );
+      res.json({ success: true, url: iconUrl });
+  } catch (error) {
+      console.error('Error:', error);
+      res.status(500).json({ success: false, message: '아이콘 업데이트 중 오류 발생' });
+  }
+});
+
+
+//탈퇴 요청
+app.post('/byebyebye',async(req,res)=>{
+  const userId = req.user._id;
+  const user = await db.collection('user').findOne({ _id: new ObjectId(userId) });
+  if(user.password == await bcrypt.hash(req.body.password,10)){ //비밀번호가 일치하면 탈퇴
+    await db.collection('user').deleteOne({ _id: new ObjectId(userId) }); //최종 삭제
+    res.json({ success: true });
+  }
+  else{
+    return res.status(400).json({ success: false, message: '비밀번호가 일치하지 않아요...' });
+  }
+})
+
+
 
 app.get('/write',checkAuth,(req,res)=>{
   res.render('write.ejs');
@@ -267,12 +459,12 @@ app.post('/write',checkAuth,async(req,res)=>{
   let content = req.body.editorContent;
   let title = req.body.title;
 
-  let categoryDefine = ['general','q']; //유저가 작성 가능한 카테고리에 글 작성 요청을 보냈는지 검사
+  let categoryAuth = ['general','qna','report','record']; //유저가 작성 가능한 카테고리에 글 작성 요청을 보냈는지 검사
   if(req.user.rank=='admin'){ //관리자일 경우 공지사항 카테고리에 접근권한 부여
-    categoryDefine.push('announcement')
+    categoryAuth.push('announcement')
   }
-  if(!categoryDefine.includes(category)){ //작성 불가능한 위치로 요청보냄(post 자체를 위조했으므로 악성 유저일 확률 높음 나중에 처리)
-    req.redirect('/');
+  if(!categoryAuth.includes(category)){ //작성 불가능한 위치로 요청보냄(post 자체를 위조했으므로 악성 유저일 확률 높음 나중에 처리)
+    res.redirect('/');
     return;
   }
 
@@ -284,9 +476,55 @@ app.post('/write',checkAuth,async(req,res)=>{
     content:content,
     category:category,
   }
-  await db.collection('general forum').insertOne(post);
-  console.log(post);
-  res.redirect('/list/1');
+
+  if(category == 'report'){
+    try{
+      await db.collection('report').insertOne(post);
+      res.redirect('/home');  //제보의 경우 홈으로 연결
+    }
+    catch{
+      return res.status(404).json({ success: false, message: '게시 중 오류가 발생했습니다.' });
+    }
+    
+  }
+  else{
+    await db.collection('general forum').insertOne(post);
+    console.log(post);
+    res.redirect('/list/1');
+  }
+})
+
+//건의사항 작성 페이지는 따로 관리 (post 요청은 write 게시판과 권한 분리할 필요가 없으므로 write post요청에서 한번에 처리)
+app.get('/report',checkAuth,(req,res)=>{
+  res.render('writeReport.ejs');
+})
+
+//개발자(관리자) 전용 제보 확인 페이지
+app.get('/admin-report',checkAdmin,async(req,res)=>{
+  let reports = []; //자꾸 여기다 const 쓸래?????????????? 진짜 아오
+  try {
+    // report 컬렉션에서 모든 문서 가져오기
+    reports = await db.collection('report').find().toArray();
+    
+    // 가져온 데이터를 adminReport.ejs 파일로 전달하여 렌더링
+  } catch (error) {
+    console.error('Error fetching reports:', error);
+    res.status(500).send('몽고디비 서버 오류');
+  }
+
+  res.render('adminReport', { reports });
+})
+
+app.post('/delete-report',checkAdmin,async(req,res)=>{
+  const reportId = req.body.id;
+  try{
+    await db.collection('report').deleteOne({ _id: new ObjectId(reportId) }); //최종 삭제
+    res.json({ success: true });
+  }
+  catch{
+    res.status(500).send('몽고디비 서버 오류');
+  }
+  
 })
 
 //리스트 페이지 구현
@@ -300,9 +538,11 @@ app.post('/write',checkAuth,async(req,res)=>{
   + 그냥 전체를 클라이언트에 전달하고 렌더링 시키게 하려면 db에서 제목이랑 글쓴이 정도만 추출해서 전달하면 좋을듯
   + 스크롤 내리면 계속 늘어나는 리스트 디자인은 그냥 리스트 통째로 다 넘겨주고 클라이언트에서 하나씩 렌더 하면 될 거 같음
 */
+const pageCutCount = 10; // 페이지당 문서 수
+
+
 app.get(['/list', '/list/:page'],async(req,res)=>{
   const page = req.params.page || '1';
-  const cut = 2;  //몇개씩 보여줄 것인지?
   if(Number(page)<1){
     res.redirect('/list/1')
     console.log('잘못된 페이지')
@@ -311,10 +551,23 @@ app.get(['/list', '/list/:page'],async(req,res)=>{
 
   // 전체 문서 개수 계산
   const totalCount = await db.collection('general forum').countDocuments();
-  const totalPages = Math.ceil(totalCount / cut);
+  const totalPages = Math.ceil(totalCount / pageCutCount);
 
-  let result = await db.collection('general forum').find({},{title:1,category:1,nickname:1,content: 0}).skip((page-1)*cut).limit(cut).toArray(); //전체 찾고, 페이지만큼 스킵하고, 개수 끊어서 할당
-  console.log(result);  //왜 아직도 content 필드까지 가져오는지는 연구 필요
+  let result = await db.collection('general forum')
+  .find({}, {
+      projection: {
+          title: 1,
+          category: 1,
+          nickname: 1,
+          time:1,
+          _id: 1 // 포함할 필드만 명시적으로 지정합니다
+      }
+  })
+  .sort({ _id: -1 }) // 최신 글부터 정렬  (몽고디비는 생성된 순으로 가져오므로 역순한거밈)
+  .skip((page - 1) * pageCutCount)
+  .limit(pageCutCount)
+  .toArray();  //console.log(result);  
+  //왜 아직도 content 필드까지 가져오는지는 연구 필요
   
   let next = (totalPages-page);
   
@@ -322,58 +575,55 @@ app.get(['/list', '/list/:page'],async(req,res)=>{
 
   console.log(page);
   
-  res.render('list.ejs',{posts:result,pagination:pagination})
+  res.render('list.ejs',{posts:result,pagination:pagination,selectedCategory: ''})
 })
 
-
-//진척이 너무 안나가서 기능 먼저 정리계획 하고 구현
-/* 
-  0. 마이페이지 등 사용자 정보가 표시되는 곳에서 프로필 이미지가 표시된다
-
-  1.마이페이지에서 이미지 업로드하고 post 요청을 보낸다
-  2.서버에서 받아서 이미지랑 유저 id 검사
-  3.s3에 업로드 하고 user 정보에 icon 링크 업데이트
-  4.원래 링크에 해당하는 예전 이미지 s3에서 지울 수 있으면 지워보기
+//검색 페이지 구현
+/*
+* 그냥 주소에서 val값 가져와서 db에서 제목 조회 후 찾고 list ejs 파일로 구현
+* 세부사항은 /list 와 거의 동일
 */
-app.post('/upload-icon',checkAuth,async(req,res)=>{
-  const userId = new ObjectId(req.user._id);
-  const user = await db.collection('user').findOne({ _id: userId });
-  upload.single('file')(req, res, async (err) => {
-    if (err) {
-      console.log(err);
-      return res.status(500).send('이미지 업로드 실패: ' + err.message);
-    }
-    
+app.get(['/search', '/search/:page'], async (req, res) => {
+  const searchQuery = req.query.val || '';  // 제목 검색 키워드
+  const category = req.query.category || '';  // 카테고리 키워드
+  const page = req.query.page || '1';
 
-    try {
-      //console.log('이미지 링크 : '+req.file.location);
-      
-
-      //유저의 이미지 링크 업데이트
-      await db.collection('user').updateOne({ _id: userId }, { $set: { icon: req.file.location } });
-
-      res.redirect('/mypage');
-    } catch (e) {
-      console.log(e);
-      res.status(500).send('서버 에러: ' + e.message);
-    }
-  });
-
-  // S3에서 원래 이미지 지우기
-  try{
-  if (user && user.icon) {
-    const deleteParams = {
-      Bucket: 'raccoonspring1',
-      Key: user.icon.split('.com/')[1]  //key 값은 그러니까 링크에서 번호만 있는 부분임
-    };
-    await s3.send(new DeleteObjectCommand(deleteParams));
-  }}
-  catch(e){
-    console.log('지우다가 에러난듯'+e);
+  if (Number(page) < 1) {
+      res.redirect(`/search?val=${encodeURIComponent(searchQuery)}&category=${encodeURIComponent(category)}&page=1`);
+      console.log('잘못된 페이지');
+      return;
   }
-})
 
-//기능 정리
+  // 검색 조건 설정
+  let searchCondition = {};
+  
+  if (searchQuery) {
+      searchCondition.title = { $regex: searchQuery, $options: 'i' };  // 제목 검색 조건
+  }
+
+  if (category) {
+      searchCondition.category = category;  // 카테고리 검색 조건
+  }
+
+  // 문서 개수 계산
+  const totalCount = await db.collection('general forum').countDocuments(searchCondition);
+  const totalPages = Math.ceil(totalCount / pageCutCount);
+
+  let result = await db.collection('general forum').find(searchCondition, { title: 1, category: 1, nickname: 1, time:1})
+      .sort({ _id: -1 }) // 최신 글부터 정렬  (몽고디비는 생성된 순으로 가져오므로 역순한거밈)
+      .skip((page - 1) * pageCutCount)
+      .limit(pageCutCount)
+      .toArray();
+
+  let next = (totalPages - page);
+
+  let pagination = { next: next, now: Number(page), total: totalCount };
+
+  res.render('list.ejs', { posts: result, pagination: pagination, searchQuery: searchQuery, selectedCategory: category });
+});
+
+
+//글 내의 이미지 업로드 기능 정리
 //아이콘 구현한거랑 비슷한데, 
 /**
  * aws 임시 버킷은 2일마다 버전 변경하고, 지난 버전은 2일마다 삭제하도록 규칙 설정해둠
@@ -387,23 +637,44 @@ app.post('/upload-icon',checkAuth,async(req,res)=>{
  */
 app.post('/upload-image', uploadTMP.single('image'), (req, res) => {
   if (req.file && req.file.location) {
-      res.json({ url: req.file.location });
+      res.json({ url: req.file.location }); //이미지 주소 전달
   } else {
       res.status(400).send('이미지 업로드 실패');
   }
 });
+//게시물 업로드 끝
 
 app.get('/detail/:id',async(req,res)=>{
-  let result = await db.collection('general forum').findOne({_id : new ObjectId(req.params.id)}); 
-  console.log(result);
-  let comments = [];
-  res.render('detail.ejs',{post:result,comment:comments})
+  let post = await db.collection('general forum').findOne({_id : new ObjectId(req.params.id)}); 
+  let comments = await db.collection('post_comments').find({postId : new ObjectId(req.params.id)}).toArray();
+  console.log(comments);
+  res.render('detail.ejs',{post:post,comments:comments})
 })
 
-app.get('*', function (req, res) {  //리액트 라우터
-  res.sendFile(path.join(__dirname, '/react-app/build/index.html'));
-});
+app.post('/comment',checkAuth,async(req,res)=>{
+  let content = req.body.comment; //ejs 파일의 name 속성과 일치해야 함
+  let postId = new ObjectId(req.body.postId); //부모 글의 아이디
 
+  let comment = {
+    postId : postId,
+    time: await new Date(),
+    user:req.user._id,
+    nickname:req.user.nickname,
+    content:content,
+  }
+  await db.collection('post_comments').insertOne(comment);
+  //console.log(comment);
+  res.redirect(`/detail/${postId}`);  //글 위치로 새로고침
+})
+
+// //리액트 라우터
+// app.get('/react', function (req, res) {  
+//   res.sendFile(path.join(__dirname, '/react-app/build/index.html'));
+// });
+// // 리액트 서브 라우팅 / '/react/*~~~~'로 들어오는 모든 주소 라우팅
+// app.get('/react/*', (req, res) => {
+//   res.sendFile(path.join(__dirname, 'react-app/build/index.html'));
+// });
 
 connectDB.then(client => {  //시작!
   console.log('DB 연결 성공');

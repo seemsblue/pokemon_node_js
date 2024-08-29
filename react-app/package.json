@@ -1,5 +1,7 @@
 {
   "name": "react-app",
+  "homepage": "/react",
+
   "version": "0.1.0",
   "private": true,
   "dependencies": {

@@ -1,0 +1,100 @@
+@import url('https://fonts.googleapis.com/css2?family=Bagel+Fat+One&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bagel+Fat+One&family=Do+Hyeon&display=swap');
+@import url("https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css");
+
+
+.sbox{
+    background: grey;
+    width: 100%;
+}
+
+.first-box{
+    margin-top: 0px;
+    height: 1500px;
+
+}
+
+.second-box{
+    margin-top: 50px;
+    height: 1500px;
+
+}
+
+.third-box{
+    margin-top: 50px;
+    height: 900px;
+
+}
+
+.simage{
+    position: sticky;
+    top: 100px;
+    left: 20px;
+    right: 20px;
+    width: 50%;
+    float: left;
+    border-radius: 20px;
+    overflow: hidden;
+}
+
+.text{
+    margin-right: 40px;
+    float: right;
+    padding-top: 50px;
+    text-align: center;
+    padding: auto;
+    width: 40%;
+}
+
+h1 {
+    font-size: 2.2rem;
+    margin-bottom: 200px;
+    margin-top: 200px;
+    font-family: "Bagel Fat One", system-ui;
+    font-weight: 400;
+    font-style: normal;
+}
+
+h3 {
+    font-size: 1.5rem;
+    margin-bottom: 50px;
+    margin-top: 200px;
+    font-family: "Do Hyeon", sans-serif;
+    font-weight: 400;
+    font-style: normal;
+}
+
+p {
+    font-size: 1.2rem;
+    margin-bottom: 30px;
+    font-family: "Do Hyeon", sans-serif;
+    font-weight: 400;
+    font-style: normal;
+}
+
+.top-box {
+    padding-top: 1px;
+    background-color: grey;
+    height: 1300px;
+    position: relative;
+    color: white;
+    padding: 30px;
+}
+.recent-posts, .site-intro, .user-feedback, .promo-banner {
+    padding: 20px;
+    border-radius: 8px;
+    background: rgba(155, 170, 128, 0.6); /* Slightly translucent background */
+}
+.recent-posts ul {
+    list-style-type: none;
+    padding: 0;
+}
+.recent-posts ul li {
+    margin-bottom: 10px;
+}
+.site-intro h2, .user-feedback, .promo-banner h2 {
+    margin-bottom: 15px;
+}
+.user-feedback p{
+    margin-bottom: 16px;
+}

@@ -12,9 +12,11 @@
 
 const router = require('express').Router();
 const path = require('path');
+
 const { MongoClient, ObjectId } = require('mongodb');
 const { checkAuth } = require('../server.js'); // 미들웨어 파일 경로에 맞게 수정
 
+let opUserId = '';
 
 const { io } = require('../server.js');
 
@@ -46,10 +48,11 @@ async function getPokemonInfoById(id){
 
     let frontImg = formData.sprites.front_default;
     let backImg;
-    try{
+    if(formData.sprites.back_default != null){
         backImg = formData.sprites.back_default;
     }
-    catch{
+    else{
+        console.log(name+'은 back이미지 못찾음');
         backImg = frontImg; //back은 없는 경우도 있음
     }
     
@@ -67,6 +70,7 @@ async function getPokemonInfoById(id){
     pokemon.id = id;    //도감코드
     pokemon.types = data.types.map(typeInfo => typeInfo.type.name); //타입
     pokemon.frontImg = frontImg;
+    pokemon.backImg = backImg;
     pokemon.stats = data.stats; // hp atk def satk sdef spd 순
     pokemon.hp = data.stats[0].base_stat;
     pokemon.attack = data.stats[1].base_stat;
@@ -77,17 +81,198 @@ async function getPokemonInfoById(id){
     let totalStat = 0;
     data.stats.map(i=> totalStat+=i.base_stat); //기타 등등 스탯 들어가있는거
     pokemon.totalStat = totalStat;  //최종 종족값
-    //배틀 중 능력치 상태변화값
-    pokemon.battleHp = pokemon.hp;  
+
+    //배틀 중 사용되는 현재 능력치
     pokemon.battleAttack = pokemon.attack;
     pokemon.battleDefense = pokemon.defense;
     pokemon.battleSpecialAttack = pokemon.specialAttack;
     pokemon.battleSpecialDefense = pokemon.specialDefense;
     pokemon.battleSpeed = pokemon.speed;
-
+    pokemon.battleAtk = Math.max(pokemon.attack, pokemon.specialAttack);    //공격 수치 = 공격과 특공 중 높은 쪽
+    pokemon.battleDef = pokemon.hp + Math.max(pokemon.defense, pokemon.specialDefense); //내구도 = 체력 + 방특방 중 높은 쪽
+    pokemon.battleDefMax = pokemon.battleDef;   //최대값  
+    pokemon.battleDefPercent = 100; //남은 체력의 백분율
 
     console.log(pokemon);
     return pokemon;
+}
+
+/**
+ * 타입상성 배율 효과 계산함수
+ * @param {String} atkType
+ * @param {String} defType
+ * @returns {Number} 배율 계산 결과 (2, 1, 0.5, 0)
+ */
+function typeMatch(atkType, defType) {
+    let result = 1;
+    switch (atkType) {
+        case 'normal': {
+            if (defType == 'rock' || defType == 'steel')
+                result = 0.5;
+            else if (defType == 'ghost')
+                result = 0;
+            break;
+        }
+        case 'fire': {
+            if (defType == 'grass' || defType == 'ice' || defType == 'bug' || defType == 'steel')
+                result = 2;
+            else if (defType == 'fire' || defType == 'water' || defType == 'rock' || defType == 'dragon')
+                result = 0.5;
+            break;
+        }
+        case 'water': {
+            if (defType == 'fire' || defType == 'ground' || defType == 'rock')
+                result = 2;
+            else if (defType == 'water' || defType == 'grass' || defType == 'dragon')
+                result = 0.5;
+            break;
+        }
+        case 'electric': {
+            if (defType == 'water' || defType == 'flying')
+                result = 2;
+            else if (defType == 'electric' || defType == 'grass' || defType == 'dragon')
+                result = 0.5;
+            else if (defType == 'ground')
+                result = 0;
+            break;
+        }
+        case 'grass': {
+            if (defType == 'water' || defType == 'ground' || defType == 'rock')
+                result = 2;
+            else if (defType == 'fire' || defType == 'grass' || defType == 'poison' || defType == 'flying' || defType == 'bug' || defType == 'dragon' || defType == 'steel')
+                result = 0.5;
+            break;
+        }
+        case 'ice': {
+            if (defType == 'grass' || defType == 'ground' || defType == 'flying' || defType == 'dragon')
+                result = 2;
+            else if (defType == 'fire' || defType == 'water' || defType == 'ice' || defType == 'steel')
+                result = 0.5;
+            break;
+        }
+        case 'fighting': {
+            if (defType == 'normal' || defType == 'ice' || defType == 'rock' || defType == 'dark' || defType == 'steel')
+                result = 2;
+            else if (defType == 'poison' || defType == 'flying' || defType == 'psychic' || defType == 'bug' || defType == 'fairy')
+                result = 0.5;
+            else if (defType == 'ghost')
+                result = 0;
+            break;
+        }
+        case 'poison': {
+            if (defType == 'grass' || defType == 'fairy')
+                result = 2;
+            else if (defType == 'poison' || defType == 'ground' || defType == 'rock' || defType == 'ghost')
+                result = 0.5;
+            else if (defType == 'steel')
+                result = 0;
+            break;
+        }
+        case 'ground': {
+            if (defType == 'fire' || defType == 'electric' || defType == 'poison' || defType == 'rock' || defType == 'steel')
+                result = 2;
+            else if (defType == 'grass' || defType == 'bug')
+                result = 0.5;
+            else if (defType == 'flying')
+                result = 0;
+            break;
+        }
+        case 'flying': {
+            if (defType == 'grass' || defType == 'fighting' || defType == 'bug')
+                result = 2;
+            else if (defType == 'electric' || defType == 'rock' || defType == 'steel')
+                result = 0.5;
+            break;
+        }
+        case 'psychic': {
+            if (defType == 'fighting' || defType == 'poison')
+                result = 2;
+            else if (defType == 'psychic' || defType == 'steel')
+                result = 0.5;
+            else if (defType == 'dark')
+                result = 0;
+            break;
+        }
+        case 'bug': {
+            if (defType == 'grass' || defType == 'psychic' || defType == 'dark')
+                result = 2;
+            else if (defType == 'fire' || defType == 'fighting' || defType == 'poison' || defType == 'flying' || defType == 'ghost' || defType == 'steel' || defType == 'fairy')
+                result = 0.5;
+            break;
+        }
+        case 'rock': {
+            if (defType == 'fire' || defType == 'ice' || defType == 'flying' || defType == 'bug')
+                result = 2;
+            else if (defType == 'fighting' || defType == 'ground' || defType == 'steel')
+                result = 0.5;
+            break;
+        }
+        case 'ghost': {
+            if (defType == 'psychic' || defType == 'ghost')
+                result = 2;
+            else if (defType == 'dark')
+                result = 0.5;
+            else if (defType == 'normal')
+                result = 0;
+            break;
+        }
+        case 'dragon': {
+            if (defType == 'dragon')
+                result = 2;
+            else if (defType == 'steel')
+                result = 0.5;
+            else if (defType == 'fairy')
+                result = 0;
+            break;
+        }
+        case 'dark': {
+            if (defType == 'psychic' || defType == 'ghost')
+                result = 2;
+            else if (defType == 'fighting' || defType == 'dark' || defType == 'fairy')
+                result = 0.5;
+            break;
+        }
+        case 'steel': {
+            if (defType == 'ice' || defType == 'rock' || defType == 'fairy')
+                result = 2;
+            else if (defType == 'fire' || defType == 'water' || defType == 'electric' || defType == 'steel')
+                result = 0.5;
+            break;
+        }
+        case 'fairy': {
+            if (defType == 'fighting' || defType == 'dragon' || defType == 'dark')
+                result = 2;
+            else if (defType == 'fire' || defType == 'poison' || defType == 'steel')
+                result = 0.5;
+            break;
+        }
+        default: {
+            console.log('여기 없는 타입인데? ' + atkType + '/' + defType);
+        }
+    }
+    return result;
+}
+
+
+/**
+ * 
+ * @param {String} atkType 
+ * @param {*} defPokemon 
+ * 공격 타입과 피격 포켓몬을 입력하면 특성, 타입등을 고려해 데미지의 배율을 실수 숫자로 반환
+ */
+function typeMatchByPokemon(atkType, defPokemon) {
+    let result = 1;
+    //타입 계산
+    defPokemon.types.forEach(element => {
+        result *= typeMatch(atkType, element);
+    });
+    //특성 계산
+
+    //도구 계산
+
+    //필드 보너스 계산
+
+    return result;
 }
 
 connectDB.then(client => {
@@ -98,7 +283,7 @@ connectDB.then(client => {
 });
 
 router.get('/match',checkAuth,async(req,res)=>{
-    let sessions = await db.collection('battle_sessions').find().toArray();
+    let sessions = await db.collection('battle_sessions').find({status: 'waiting'}).toArray();  //매칭 안된 방만 찾아줌
     res.render('battle/match.ejs',{sessions:sessions});
 })
 router.get('/rooms-json',async(req,res)=>{  //room 리스트를 json으로 반환
@@ -137,6 +322,7 @@ router.post('/create-room',checkAuth,async(req,res)=>{
         date_time : new Date(), //세션 유효기간 10분으로 초기화
         code:code,
         title : title,
+        status : 'waiting'
     });
     res.redirect('/battle/'+code);
 })
@@ -156,9 +342,14 @@ router.get('/battle/:code',checkAuth,async(req,res)=>{
     if (sessionUser1Id === reqUserId) { //방 주인이라면 home으로 참가
         side = 'home'
     } else if(session.user2==null||session.user2==req.user._id.toString()){ //두번째 유저 자리가 비어있다면 away로 참가
-        
         side = 'away'
-        await db.collection('battle_sessions').updateOne({_id : new ObjectId(session._id)},{$set:{user2:new ObjectId(reqUserId)}});
+        await db.collection('battle_sessions').updateOne(
+            {_id : new ObjectId(session._id)},
+            {
+                $set:{
+                    user2:new ObjectId(reqUserId),
+                    status:'matched', //매칭됨으로 상태 변경(이 단계부터는 방 검색 안됨)
+            }});
     }
     else{   //관전자라면...?
         side = 'spectator'
@@ -170,7 +361,15 @@ router.get('/battle/:code',checkAuth,async(req,res)=>{
     //console.log(currentUser);
 
     res.render('battle/battle.ejs',{session:session,side:side,home:currentUser});
+    
 });
+
+/**
+* indices 안에 없는 인덱스의 list 요소는 삭제한 리스트 리턴(선택한 포켓몬만 남김)
+*/
+function filterListByIndices(list, indices) {   
+    return list.filter((item, index) => indices.includes(index));
+}
 
 //  !!소켓 진행 흐름은 그림 참조
 io.on('connection', async(socket) => {   //접속 할때마다 유저에게 고유한 소켓 객체가 제공
@@ -182,13 +381,35 @@ io.on('connection', async(socket) => {   //접속 할때마다 유저에게 고�
     socket.side='';
     let side;
     let roomCode='';
-    const randomPokemonId = () => Math.floor(Math.random() * 1010) + 1;
+
+    
     let homeDeck = [];  //보유중인 포켓몬
     let awayDeck = [];
+    function randomPokemonId(){
+        let id;
+
+        do {
+            id = Math.floor(Math.random() * 1010) + 1;
+        } while (homeDeck.includes(id) || awayDeck.includes(id));   //덱에 포함되어있지 않는 수가 나올 때 까지
+
+
+        //종족값 최소 보장 매커니즘은 여기보단 추출 후에 다시 추출하는 식으로 짜는게 맞을듯
+
+
+        return id;
+    };
+    
     //wait이면 시작 대기중 play면 게임중, win이면 접속 종료 시 포인트 증가, lose면 포인트 감소
     let status = 'wait';
     let action = 'attack1'; //기본값은 1번 타입으로 공격
-    
+
+    let myDethCount = 0;    //먼저 2가 되면 패배
+    let opDethCount = 0;
+
+    let canSelectAction = true;
+
+    let endFlag = false;
+
     //0 - 접속 이벤트
     /**
      * 
@@ -203,9 +424,9 @@ io.on('connection', async(socket) => {   //접속 할때마다 유저에게 고�
 
     socket.on('away-join',async(data)=>{    //away 유저가 접속했을 때 away 유저의 정보 전송
         const session = socket.request.session;
-        const userId = session.passport.user.id;
-        let awayUser = await db.collection('user').findOne({ _id: new ObjectId(userId)});
-        delete awayUser.password;
+        opUserId = session.passport.user.id;
+        let awayUser = await db.collection('user').findOne({ _id: new ObjectId(opUserId)});
+        delete awayUser.password;   //개인정보는 빼고 전송
         delete awayUser.email;
         io.to(data.room).emit('away-update',awayUser);
     })
@@ -228,19 +449,22 @@ io.on('connection', async(socket) => {   //접속 할때마다 유저에게 고�
      * 3. home 유저는 start 버튼을 눌러 askStart 요청을 보낸다
      * 4. 약간의 딜레이를 가졌다가, 아무도 나가지 않았다면 start한다
      */
-    let selectedPokemon = [];  //선택한 포켓몬
-    let opSelectedPokemon = []  //상대가 선택한 포켓몬
-    let myFieldPokemon = 0; //내 필드에 나와있는 포켓몬 인덱스
-    let opFieldPokemon = 0; //상대 필드에 나와있는 포켓몬 인덱스
+    let myBattlePokemon = [];  //선택한 포켓몬
+    let opBattlePokemon = []  //상대가 선택한 포켓몬
+    let myFieldPokemonIndex = 0; //현재 내 필드에 나와있는 포켓몬 인덱스
+    let opFieldPokemonIndex = 0; //현재 상대 필드에 나와있는 포켓몬 인덱스
+    let myFieldPokemon;
+    let opFieldPokemon;
 
     let startGameTimeout;
     socket.on('askStart',async(data)=>{
+        status='play';
         console.log(roomCode+'방에서 askStart');
         io.to(roomCode).emit('askStart');
         await db.collection('battle_sessions').updateOne(
         {code: roomCode},
         { $set: { date_time: new Date() } }
-    );
+        );
 
         for(i=0;i<6;i++){   //홈 플레이어의 포켓몬 6마리의 도감번호를 선정
             homeDeck.push(randomPokemonId());
@@ -253,68 +477,328 @@ io.on('connection', async(socket) => {   //접속 할때마다 유저에게 고�
         startGameTimeout = setTimeout(() => {   //5초 뒤에 startGame 전송/ 도중에 leave요청시 중단
             io.to(roomCode).emit('startGame');
             console.log(`${roomCode}방 게임 시작!`);
-            status='play';
+            
             
             io.to(roomCode).emit('setDeck',{homeDeck:homeDeck, awayDeck:awayDeck});
             io.to(roomCode).emit('battlePhase');    
 
-            setTimeout(() => {
-                console.log(`${roomCode}방 배틀 페이즈 시작!`);
-            }, 31000);
         }, 7000);
     })
-    /**
-     * 포켓몬 선택 슈신
-     */
+    
+    //내 포켓몬 선택 수신
     socket.on('select-pokemon',async(data)=>{
-        selectedPokemon=data;
-        io.to(roomCode).emit('select-pokemon',{side:side,pokemon:selectedPokemon});
-        console.log(selectedPokemon);
+        status='play';
+        myBattlePokemon=data;
+        io.to(roomCode).emit('select-pokemon',{side:side,pokemon:myBattlePokemon});
+        //console.log(myBattlePokemon);
     })
-
-    //상대 선택 덱 수신
+    //상대 선택 포켓몬 수신
     socket.on('opSelect',(data)=>{
-        opSelectedPokemon = data.opPokemon;
+        status='play';
+        opBattlePokemon = data.opPokemon;
+        console.log(data.opPokemon);
     })
 
-    //배틀 턴 시작 수신
+
+    //턴 시작 요청 수신
     socket.on('start-turn',(data)=>{
-        io.to(myId).emit('start-turn');
+        /**
+         * 여기에 배틀 결과 계산하는 과정이 전에 있어야 함
+         */
+
+        //매 턴 계산된 필드의 결과를 전달
+
+        //console.log('emit [start-turn]');
+        //console.log(myId);
+
+        
+        myFieldPokemon = myBattlePokemon[myFieldPokemonIndex];
+        opFieldPokemon = opBattlePokemon[opFieldPokemonIndex];
+        
+        io.to(myId).emit('start-turn',{me:myBattlePokemon[myFieldPokemonIndex],op:opBattlePokemon[opFieldPokemonIndex]});
     })
 
     //액션 수신 > 액션 전달
     socket.on('select-action',async(data)=>{
-        action = data.action;
-        io.to(roomCode).emit('select-action',{side:side,action});   //어떤 사이드의 유저가 어떤 액션을 선택했는지 전송
+        if(canSelectAction){
+            action = data.action;
+            io.to(roomCode).emit('send-action',{side:data.side,action:action});   //어떤 사이드의 유저가 어떤 액션을 선택했는지 전송
+            canSelectAction = false;
+        }
     })
 
-    //턴 종료 수신 > 결과 계산 후 전달
-    function battleAction(action,side){  //우선도와 스피드에 따라 어느쪽이 먼저 행동할지 모르기 때문에 함수로 분리해서 사용
-        switch(action){
-            case 'surrender' :{};
-            case 'swap' :{};
-            case 'attack1':{};
-            case 'attack2':{};
-            default :;
+    //side의 필드 포켓몬 교체
+    function changeFieldPokemon(side){   
+        if(side == 'me'){
+            myBattlePokemon[myFieldPokemonIndex] = myFieldPokemon;  //먼저 필드에 있던 포켓몬의 변화값을 덱에 저장
+            myFieldPokemonIndex++;
+            myFieldPokemonIndex = myFieldPokemonIndex%2;
+            myFieldPokemon = myBattlePokemon[myFieldPokemonIndex];
+        }
+        else{
+            opBattlePokemon[opFieldPokemonIndex] = opFieldPokemon;  //먼저 필드에 있던 포켓몬의 변화값을 덱에 저장
+            opFieldPokemonIndex++;
+            opFieldPokemonIndex = opFieldPokemonIndex%2;
+            opFieldPokemon = opBattlePokemon[opFieldPokemonIndex];
         }
     }
-    socket.on('end-turn',async(data)=>{
+    
+    function battleAction(myAction,opAction){  //우선도와 스피드에 따라 어느쪽이 먼저 행동할지 모르기 때문에 함수로 분리해서 사용
+        let log = [];
+        let effect; //효과 배율 참조
+
+        if(myBattlePokemon[myFieldPokemonIndex].speed == opBattlePokemon[opFieldPokemonIndex].speed){
+            if(side=='away'){
+                myBattlePokemon[myFieldPokemonIndex].battleSpeed+=0.1;
+            }
+            else{
+                opBattlePokemon[opFieldPokemonIndex].battleSpeed+=0.1
+            }
+        }
+
+        //상대 항복
+        if(opAction=='surrender'){
+            log.push({action:'win'});
+            status = 'win';
+            return log;
+        }
+
+        //교체
+        if(myAction=='change'&&opAction=='change'){ //둘 다 교체라면 스피드 빠른쪽 먼저 교체
+            if (myBattlePokemon[myFieldPokemonIndex].battleSpeed > opBattlePokemon[opFieldPokemonIndex].battleSpeed){   //내가 더 빠름
+                changeFieldPokemon('me');
+                log.push({action:'myChange'});
+
+                changeFieldPokemon('op');
+                log.push({action:'opChange'});
+            }
+            else{
+                changeFieldPokemon('op');
+                log.push({action:'opChange'});
+
+                changeFieldPokemon('me');
+                log.push({action:'myChange'});
+            }
+        }
+        else if(myAction=='change'&&myDethCount<1){ //내 포켓몬 교체
+            changeFieldPokemon('me');
+            log.push({action:'myChange'});
+        }
+        else if(opAction=='change'&&opDethCount<1){ //상대 포켓몬 교체
+            changeFieldPokemon('op');
+            log.push({action:'opChange'});
+        }
+
+        if (myBattlePokemon[myFieldPokemonIndex].battleSpeed > opBattlePokemon[opFieldPokemonIndex].battleSpeed){ 
+            //내가 더 빠를 때
+
+            //내 기술 시전
+            if(myAction!='change'&&myAction!='surrender'){
+                effect = attackAction(myAction,'my');
+                log.push({action:'myAction',detail:myAction, effect:effect});
+                if(opBattlePokemon[opFieldPokemonIndex].battleDef<=0){   //상대 포켓몬 죽으면?
+                    opDethCount++;
+                    changeFieldPokemon('op');
+                    log.push({action:'opDead'});
+
+                    if(opDethCount==2){ //상대 포켓몬 전멸시
+                        log.push({action:'win'})
+                    }
+                    
+                    return log; //죽으면 턴 끝
+                }
+            }
+            //이후 상대 기술 시전
+            if(opAction!='change'&&opAction!='surrender'){
+                effect = attackAction(opAction,'op');
+                log.push({action:'opAction',detail:opAction, effect:effect});
+                if(myBattlePokemon[myFieldPokemonIndex].battleDef<=0){   //내 포켓몬 죽으면?
+                    myDethCount++;
+                    changeFieldPokemon('me');
+                    log.push({action:'myDead'});
+                    if(myDethCount==2){ //내 포켓몬 전멸시
+                        log.push({action:'lose'})
+                    }
+                    
+                    return log;
+                }
+            }
+            
+        }
+        else{   //상대가 더 빠를 때
+            //상대 기술 시전
+            if(opAction!='change'&&opAction!='surrender'){
+                effect = attackAction(opAction,'op');
+                log.push({action:'opAction',detail:opAction,effect:effect});
+                if(myBattlePokemon[myFieldPokemonIndex].battleDef<=0){   //내 포켓몬 죽으면?
+                    myDethCount++;
+                    changeFieldPokemon('me');
+                    log.push({action:'myDead'});
+                    if(myDethCount==2){ //내 포켓몬 전멸시
+                        log.push({action:'lose'});
+                        status = 'lose';
+                    }
+                    
+                    return log;
+                }
+            }
+            //이후 내 기술 시전
+            if(myAction!='change'&&myAction!='surrender'){
+                effect = attackAction(myAction,'my');
+                log.push({action:'myAction',detail:myAction,effect:effect});
+                if(opBattlePokemon[opFieldPokemonIndex].battleDef<=0){   //상대 포켓몬 죽으면?
+                    opDethCount++; 
+                    changeFieldPokemon('op');
+                    log.push({action:'opDead'});
+                    if(opDethCount==2){ //상대 포켓몬 전멸시
+                        log.push({action:'win'});
+                        status = 'win';
+                    }
+                    
+                    return log; //죽으면 턴 끝
+                }
+            }
+        }
+        
+        return log;
+    }
+
+    /**
+     * 공격 액션 결과 계산 > hp 등 상태변화 반영 함수
+     * @returns {String} - 액션의 효과 (super,normal,weak,invalid)
+     */
+    function attackAction(action,owner){
+        let effect = 'normal';  //기본값 normal
+        let baeyul;    //몇배로 데미지가 적용되는지
+        let damage;
+        switch(action){
+            case 'typeAttack1':{
+                if(owner == 'my'){  //내 공격
+                    baeyul = typeMatchByPokemon(myFieldPokemon.types[0],opFieldPokemon)
+                    if(baeyul>1){           //(약점 공격)
+                        effect = 'super';
+                    }
+                    else if(baeyul == 0){   //(무효타입 공격)
+                        effect = 'invalid';
+                    }
+                    else if(baeyul < 1){    //(내성타입 공격)
+                        effect = 'weak';
+                    }
+
+                    damage = Math.floor(myFieldPokemon.battleAtk * baeyul);
+                    
+                    opFieldPokemon.battleDef -= damage;   
+                }
+                else{               //상대 공격
+                    baeyul = typeMatchByPokemon(opFieldPokemon.types[0],myFieldPokemon)
+                    if(baeyul>1){           //(약점 공격)
+                        effect = 'super';
+                    }
+                    else if(baeyul == 0){   //(무효타입 공격)
+                        effect = 'invalid';
+                    }
+                    else if(baeyul < 1){    //(내성타입 공격)
+                        effect = 'weak';
+                    }
+
+                    damage = Math.floor(opFieldPokemon.battleAtk * baeyul);
+
+                    myFieldPokemon.battleDef -= damage;
+                }
+                break;
+            }
+            case 'typeAttack2':{
+                if (myFieldPokemon.types[1]== undefined) myFieldPokemon.types[1]=myFieldPokemon.types[0];   //2번째 타입 없는데 강제요청시 예외처리
+                if (opFieldPokemon.types[1]== undefined) opFieldPokemon.types[1]=opFieldPokemon.types[0];
+
+                if(owner == 'my'){
+                    baeyul = typeMatchByPokemon(myFieldPokemon.types[1],opFieldPokemon)
+                    if(baeyul>1){           //(약점 공격)
+                        effect = 'super';
+                    }
+                    else if(baeyul == 0){   //(무효타입 공격)
+                        effect = 'invalid';
+                    }
+                    else if(baeyul < 1){    //(내성타입 공격)
+                        effect = 'weak';
+                    }
+                    
+                    damage = Math.floor(myFieldPokemon.battleAtk * baeyul);
+
+                    opFieldPokemon.battleDef -= damage;   
+                }
+                else{
+                    baeyul = typeMatchByPokemon(opFieldPokemon.types[1],myFieldPokemon)
+                    if(baeyul>1){           //(약점 공격)
+                        effect = 'super';
+                    }
+                    else if(baeyul == 0){   //(무효타입 공격)
+                        effect = 'invalid';
+                    }
+                    else if(baeyul < 1){    //(내성타입 공격)
+                        effect = 'weak';
+                    }
+
+                    damage = Math.floor(opFieldPokemon.battleAtk * baeyul);
+
+                    myFieldPokemon.battleDef -= damage;   
+                }
+                break;
+            }
+            case 'normalAttack':{
+                if(owner == 'my'){  
+                    damage = Math.floor(myFieldPokemon.battleAtk*0.8);
+                    
+                    opFieldPokemon.battleDef -= damage;   
+                }
+                else{
+                    damage = Math.floor(opFieldPokemon.battleAtk*0.8);
+                    
+                    myFieldPokemon.battleDef -= damage;   
+                }
+                break;
+            }
+            default : 
+                console.log('잘못된 배틀 명령:'+owner+'의 '+action);
+                break;
+        }
+        myFieldPokemon.battleDefPercent = Math.floor(100*(myFieldPokemon.battleDef / myFieldPokemon.battleDefMax));
+        opFieldPokemon.battleDefPercent = Math.floor(100*(opFieldPokemon.battleDef / opFieldPokemon.battleDefMax));
+        if(myFieldPokemon.battleDefPercent<=0) {myFieldPokemon.battleDefPercent=0; myFieldPokemon.battleDef=0;}   //0퍼센트 미만일 경우 0으로 수치조정 
+        if(opFieldPokemon.battleDefPercent<=0) {opFieldPokemon.battleDefPercent=0; opFieldPokemon.battleDef=0;}
+
+
+        myBattlePokemon[myFieldPokemonIndex] = myFieldPokemon;  //변경수치 반영
+        opBattlePokemon[opFieldPokemonIndex] = opFieldPokemon;
+        //console.log(`${owner}가 ${damage}데미지 입힘!`)
+        return effect;
+    }
+
+    //턴 종료 수신 > 결과 계산 후 전달
+    socket.on('send-action',async(data)=>{
         let opAction = data.opAction;
         let myAction = data.myAction;
+        let log = battleAction(myAction,opAction);
+
         //액션 결과 계산
-        io.to(myId).emit('end-turn',{})
+        //로그랑 포켓몬 남은 체력 등등 도 전달해줘야 할듯
+        //필요없는 부분은 짤라서 전달해서 통신 데이터 양 줄이기
+        console.log(`${side}/${myBattlePokemon[0].name}:${myBattlePokemon[0].battleDefPercent}%|${myBattlePokemon[1].name}:${myBattlePokemon[1].battleDefPercent}% &
+            ${opBattlePokemon[0].name}:${opBattlePokemon[0].battleDefPercent}%|${opBattlePokemon[1].name}:${opBattlePokemon[1].battleDefPercent}%`)
+        io.to(myId).emit('end-turn',{log:log,myPokemon:myBattlePokemon,opPokemon:opBattlePokemon});
+
     })
 
-    //2 - 게임 종료 이벤트(연결끊김, 게임 종료 등)
-    /**
-     * endGame을 수신받는 경우
-     * 0. 승부가 나서 각자 endGame 전송
-     * 1. 상대가 떠나서 유저가 서버로부터 승리 통보를 받고, 그걸 다시 서버에 알림
-     * 2. 항복을 눌러서 먼저 패배정보 전송
-     */
-    socket.on('endGame',async(data)=>{
-        console.log('endGame 수신됨')
-        status = data.result;   //결과 반영
+    //액션 결과 프린트 종료 수신 > 새로운 턴 시작 전달
+    socket.on('end-print',async(data)=>{
+        canSelectAction = true;
+        io.to(roomCode).emit('end-print',{side:side});
+    })
+
+
+    //2 - 게임 종료 (연결끊김, 정산)
+    socket.on('endGame',(data)=>{   //게임 중 상대 떠남
+        status = data.result;
     })
 
     socket.on('leave',async(data)=>{   //게임 시작 전 상대 유저 떠남
@@ -327,25 +811,81 @@ io.on('connection', async(socket) => {   //접속 할때마다 유저에게 고�
             }
         }
         clearTimeout(startGameTimeout); // 예약된 startGame 있으면 취소
-        console.log(`${roomCode}방 게임 시작 취소됨...(away 연결 끊김)`);
+        //console.log(`${roomCode}방 게임 시작 취소됨...(away 연결 끊김)`);
     })
 
     socket.on('disconnect', async() => {
         const roomId = socket.roomsJoined[0] //방 연결 끊긴 코드는 알아냈으니 이걸로 접속 끊겼을 때 처리 하면 될듯
-        console.log(socket.side);
+        console.log(socket.side+', 상태는'+status);
         socket.leave(roomId);
+
+        let recordData = {};
+        if(status == 'win' || status == 'lose'){
+            try{
+                recordData= {
+                    opponent : opUserId,
+                    myPokemon1 : myBattlePokemon[0].id,
+                    myPokemon2 : myBattlePokemon[1].id,
+                    opPokemon1 : opBattlePokemon[0].id,
+                    opPokemon2 : opBattlePokemon[1].id,
+                    result : status,
+                    date_time : new Date(),
+                }
+            }
+            catch{  //시작하기 전에 나갔거나 예기치 못한 경우 메타몽으로 표현
+                recordData = {
+                    opponent : opUserId,
+                    opponent : opUserId,
+                    myPokemon1 :132,
+                    myPokemon2 : 132,
+                    opPokemon1 : 132,
+                    opPokemon2 : 132,
+                    result : status,
+                    date_time : new Date(),
+                }
+            }
+            
+        }
+        
+        
 
         //포인트 업데이트 함수
         async function updatePoint(i){
             await db.collection('user').updateOne(
              {_id: new ObjectId(session.passport.user.id)},
              {$inc:{point:i}}
-        )
+            )
         }
+        //최근전적 업데이트 함수
+        async function updatePoint(i){
+            if(opUserId == ''||status=='wait'){ //상대가 아직 접속하지 않았다면 return, 게임이 아직 시작하지 않았다면 return
+                return; 
+            }
+            await db.collection('user').updateOne(
+             {_id: new ObjectId(session.passport.user.id)},
+             {$set:{recentRecord:recordData}}
+            )
+        }
+
         
-        if(status=='wait'){
-            io.to(roomId).emit('leave');    //게임 시작하기 전에 떠남
+        if(status=='wait'&&side=='away'){ //away가 게임 시작하기 전에 떠남
+            io.to(roomId).emit('leave');    
+            await db.collection('battle_sessions').updateOne(
+                {code:Number(roomId)},  //문자가 아니라 숫자 형태여서 안됐었음 타입 힌트를 남기던 타입스크립트를 애요ㅇ합시다
+                {
+                    $set:{
+                        status:'waiting', //다시 대기중으로 상태 변경(방 목록에서 노출)
+                        }
+                    }
+            );
+            console.log(roomId+'방 다시 대기방으로');
         }
+        else if(status=='wait'&&side=='home'){ //home이 게임 시작하기 전에 떠남
+            await db.collection('battle_sessions').deleteOne({code:Number(roomId)});    //방폭
+            io.to(roomId).emit('load-match');   //강제로 매칭페이지로 이동
+            return;
+        }
+
         if(status=='play'){ //게임 중 강제종료 할 경우 상대에게 승리 플래그 지급
             updatePoint(-1);
             console.log('탈주함');
@@ -353,12 +893,12 @@ io.on('connection', async(socket) => {   //접속 할때마다 유저에게 고�
         }
         else if(status=='win'){
             updatePoint(1);
-            console.log('이김');
         }
         else if(status=='lose'){
             updatePoint(-1);
-            console.log('짐');
         }
+
+        //자신의 전적 업데이트 insert
     })
 });
 

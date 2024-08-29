@@ -1,12 +1,15 @@
+@import url('https://fonts.googleapis.com/css2?family=Bagel+Fat+One&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bagel+Fat+One&family=Do+Hyeon&display=swap');
+@import url("https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css");
+
+
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
 }
 
-.hidden {
-    display: none;
-}
+
 
 .nav {
     background-color: #333;
@@ -14,6 +17,8 @@
 }
 
 .nav a {
+    margin-right: 15px;
+    cursor: pointer;
     float: left;
     display: block;
     color: #f2f2f2;
@@ -27,6 +32,161 @@
     color: black;
 }
 
+.nav .active  {
+    background-color: #ddd;
+    color: black;
+}
+
+.nav .inactive  {
+    cursor: not-allowed;
+    background-color: gray;
+    color: rgb(19, 19, 19);
+}
+@media (max-width: 767.98px) {
+    .nav a {
+        margin-right: 7px; 
+        padding: 10px 7px;
+    }
+}
+
+
+
+.alt {
+    position: fixed;
+    padding: 30px;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10;
+}
+
+.alt-box{
+    position: relative;
+    padding: 80px;
+    background-color: wheat;
+    border-radius: 10px;
+    z-index: 11;
+}
+
+.alt .close-btn{
+    position: absolute;
+    top: 15px; right: 20px;
+    border: none;
+    background: none;
+    font-size: 30px;
+    transition: all 0.3s;
+}
+.alt .close-btn:hover {
+    transform: scale(1.1);
+    color: #ff0000;
+}
+
 .list-box:not(:first-child) {
     border-top: 1px dashed  #17a2b8; /* Bootstrap info 색상 */
+}
+
+#middle-side{
+    background-color: white;
+    padding-top: 10px;
+    padding-bottom: 130px;
+}
+#middle-side #category-text{
+    font-weight: bold;
+}
+
+#category-side {
+    background-color: antiquewhite;
+}
+
+#category-content {
+    background-color: white;
+    margin-left: 10px;
+    margin-top: 30px;
+    padding: 5px;
+    border-style: outset;
+}
+#category-btn {
+    display: block; /* 버튼처럼 보이도록 블록 요소로 변환 */
+    padding: 5px 4px; /* 버튼의 안쪽 여백 */
+    margin: 5px; /* 버튼 사이의 간격 */
+    margin-top: 10px;
+    font-size: 16px; /* 폰트 크기 */
+    font-weight: bold; /* 폰트 굵기 */
+    text-decoration: none; /* 밑줄 제거 */
+    color: white; /* 텍스트 색상 */
+    background-color: #67b0ff; /* 기본 배경색 (파란색) */
+    border-radius: 5px; /* 모서리 둥글게 */
+    transition: background-color 0.3s ease, transform 0.3s ease; /* 호버 효과를 위한 전환 */
+}
+
+#category-btn:hover {
+    background-color: #0056b3; /* 호버 시 배경색 (진한 파란색) */
+    transform: translateY(-2px); /* 호버 시 살짝 위로 올라가는 효과 */
+}
+
+.btn-container .disabled{
+    border-style: dashed;
+    font-weight: bolder;
+}
+
+#right-side{
+    padding: 1px;
+}
+
+.side-controller{
+    margin-top: 200px;
+}
+
+/* 새로고침 버튼 */
+.refresh-btn{
+    font-weight: bold; /* 아이콘 굵기 조정 */
+    margin-left: 12px;
+}
+.refresh-btn:hover {
+    animation: rotate 1s infinite; /* 호버 시 애니메이션 적용 */
+}
+@keyframes rotate {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+/*폰트 세팅*/
+
+.bagel {
+    font-family: "Bagel Fat One", system-ui;
+    font-weight: 400;
+    font-style: normal;
+}
+
+.hyeon {
+    font-family: "Do Hyeon", sans-serif;
+    font-weight: 400;
+    font-style: normal;
+}
+
+.regular {
+    font-size: 30px;
+}
+
+.hidden {
+    display: none;
+}
+
+/*각종 봇 낚시용*/
+.op-bot{
+    opacity: 0.01;
+}
+
+.hidden-bot{
+    position: fixed;
+    top: -100px;
 }

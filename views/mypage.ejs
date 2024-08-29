@@ -6,9 +6,10 @@
     <title>당신만을 위한 공간</title>
     <link href="/bootstrap/bootstrap.min.css" rel="stylesheet">
     <link href="/css/main.css" rel="stylesheet">
+
 </head>
 <body>
-    <%- include('nav.ejs') %>
+    <%- include('component/nav.ejs')%>
 
     <div class="mx-auto" style="width: 95%;">
         <h2><%= user.nickname %></h2>
@@ -20,44 +21,221 @@
             <button type="button" class="btn btn-secondary">아이콘 변경</button>
             <button type="button" class="btn btn-secondary">닉네임 변경</button>
             <button type="button" class="btn btn-secondary">탈퇴</button>
+            <button type="button" class="btn btn-success bg-opacity-25">포인트</button>
         </div>
         <div class="option" id="icon">
+            <br>
             <p>3mb 이하 200*200 이미지까지 업로드 가능합니다</p>
             <form action="/upload-icon" class="dropzone" id="myDropzone"></form>
             <button id="uploadButton" type="button" class="btn btn-success">업로드하기</button>
         </div>
         <div class="option hidden" id="nickname">
+            <br>
             <h3>닉네임 변경</h3>
+            <p>주의 : 중복이나 2~8자 아닌 닉네임이면 막힘</p>
+            <div class="input-group input-group-lg">
+                <span class="input-group-text" id="inputGroup-sizing-lg">변경할 닉네임</span>
+                <input maxlength='8' type="text" id="nickname-input" class="form-control" aria-label="Sizing example input" aria-describedby="inputGroup-sizing-lg">
+                <button type="button" class="change-nickname-btn btn btn-success">변경하기</button>
+            </div>
         </div>
         <div class="option hidden" id="bye">
+            <br>
             <h3>탈퇴</h3>
+            <div class="input-group input-group-lg">
+                <span class="input-group-text">비밀번호 확인</span>
+                <input type="password" id="bye-password" class="form-control" placeholder="비밀번호를 입력하세요">
+            </div>
+            <br>
+            <div id="checkbox-container">
+                <p>탈퇴하시려면 모든 체크박스를 선택해주세요:</p>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="check1">
+                    <label class="form-check-label" for="check1">확인 1</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="check2">
+                    <label class="form-check-label" for="check2">확인 2</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="check3">
+                    <label class="form-check-label" for="check3">확인 3</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="check4">
+                    <label class="form-check-label" for="check4">확인 4</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="check5">
+                    <label class="form-check-label" for="check5">확인 5</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="check6">
+                    <label class="form-check-label" for="check6">확인 6</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="check7">
+                    <label class="form-check-label" for="check7">확인 7</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="check8">
+                    <label class="form-check-label" for="check8">확인 8</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="check9">
+                    <label class="form-check-label" for="check9">확인 9</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="check10">
+                    <label class="form-check-label" for="check10">확인 10</label>
+                </div>
+            </div>
+            <br>
+            <button type="button" class="btn btn-danger" onclick="requestDeletion()"><i class="bi bi-patch-exclamation"></i>탈퇴하기<i class="bi bi-patch-exclamation"></i></button>
+        </div>
+        <div class="option hidden row" id="point">
+            <br>
+            <h3>포인트 아이콘 설정</h3>
+            <div class="dropdown">
+                <button class="btn btn-secondary dropdown-toggle" type="button" id="iconDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                  현재 아이콘: <i class="<%= user.currentIcon %> fs-2"></i>
+                </button>
+                <ul class="dropdown-menu" aria-labelledby="iconDropdown">
+                  <% if (user.purchase && user.purchase.length > 0) { %>
+                    <% user.purchase.forEach(function(icon) { %>
+                      <li>
+                        <a class="dropdown-item" href="#" onclick="confirmIconChange('<%= icon %>')">
+                          <i class="<%= icon %> fs-2"></i>
+                        </a>
+                      </li>
+                    <% }); %>
+                  <% } else { %>
+                    <li class="dropdown-item text-muted">구매한 아이콘이 없습니다.</li>
+                  <% } %>
+                </ul>
+            </div>
+            <p>현재 포인트 : <%= user.point %></p>
+            <div class="col-5">
+                <div>
+                    <i class="bi bi-tsunami fs-2"></i>
+                    <span>5pt</span>
+                    <button type="button" class="btn btn-info">구매하기</button>
+                </div>
+                <div>
+                    <i class="bi bi-trophy fs-2"></i>
+                    <span>5pt</span>
+                    <button type="button" class="btn btn-info">구매하기</button>
+                </div>
+                <div>
+                    <i class="bi bi-tropical-storm fs-2"></i>
+                    <span>5pt</span>
+                    <button type="button" class="btn btn-info">구매하기</button>
+                </div>
+                <div>
+                    <i class="bi bi-yin-yang fs-2"></i>
+                    <span>5pt</span>
+                    <button type="button" class="btn btn-info">구매하기</button>
+                </div>
+                <div>
+                    <i class="bi bi-wallet-fill fs-2"></i>
+                    <span>5pt</span>
+                    <button type="button" class="btn btn-info">구매하기</button>
+                </div>
+                <div>
+                    <i class="bi bi-tornado fs-2"></i>
+                    <span>5pt</span>
+                    <button type="button" class="btn btn-info">구매하기</button>
+                </div>
+                <div>
+                    <i class="bi bi-sun fs-2"></i>
+                    <span>5pt</span>
+                    <button type="button" class="btn btn-info">구매하기</button>
+                </div>
+                <div>
+                    <i class="bi bi-suit-heart fs-2"></i>
+                    <span>7pt</span>
+                    <button type="button" class="btn btn-info">구매하기</button>
+                </div>
+                <div>
+                    <i class="bi bi-suit-diamond fs-2"></i>
+                    <span>7pt</span>
+                    <button type="button" class="btn btn-info">구매하기</button>
+                </div>
+                <div>
+                    <i class="bi bi-suit-spade fs-2"></i>
+                    <span>7pt</span>
+                    <button type="button" class="btn btn-info">구매하기</button>
+                </div>
+                <div>
+                    <i class="bi bi-suit-club fs-2"></i>
+                    <span>7pt</span>
+                    <button type="button" class="btn btn-info">구매하기</button>
+                </div>
+                <div>
+                    <i class="bi bi-star fs-2"></i>
+                    <span>7pt</span>
+                    <button type="button" class="btn btn-info">구매하기</button>
+                </div>
+                <div>
+                    <i class="bi bi-lightning fs-2"></i>
+                    <span>7pt</span>
+                    <button type="button" class="btn btn-info">구매하기</button>
+                </div>
+            </div>
+            <div class="col-5">
+                <div>
+                    <i class="bi bi-heart-half fs-2"></i>
+                    <span>50pt</span>
+                    <button type="button" class="btn btn-info">구매하기</button>
+                </div>
+                <div>
+                    <i class="bi bi-filetype-gif fs-2"></i>
+                    <span>50pt</span>
+                    <button type="button" class="btn btn-info">구매하기</button>
+                </div>
+                <div>
+                    <i class="bi bi-emoji-sunglasses fs-2"></i>
+                    <span>100pt</span>
+                    <button type="button" class="btn btn-info">구매하기</button>
+                </div>
+                <div>
+                    <i class="bi bi-dice-6 fs-2"></i>
+                    <span>666pt</span>
+                    <button type="button" class="btn btn-info">구매하기</button>
+                </div>
+            </div>
         </div>
     </div>
     
     <script src="https://unpkg.com/dropzone@5/dist/min/dropzone.min.js"></script>
     <link rel="stylesheet" href="https://unpkg.com/dropzone@5/dist/min/dropzone.min.css" type="text/css"/>
     <script>
-        //스크립트랑 드롭존 불러오는 서순 주의!!!!!!!!
         Dropzone.options.myDropzone = {
+            paramName: 'image',  // 서버에서 기대하는 필드 이름
             url: "/upload-icon",
             method: 'post',
             autoProcessQueue: false,
             maxFiles: 1,
-            maxFilesize: 3,  //MB
+            maxFilesize: 3,  // MB 단위
             acceptedFiles: 'image/*',
-            thumbnailHeight: 200, // Upload icon size
-            thumbnailWidth: 200, // Upload icon size
+            thumbnailHeight: 200, 
+            thumbnailWidth: 200, 
             init: function() {
                 var myDropzone = this;
                 document.getElementById("uploadButton").addEventListener("click", function() {
-                    myDropzone.processQueue(); // Manually process the queue
+                    myDropzone.processQueue(); // 수동으로 업로드 큐 처리
                 });
                 this.on("success", function(file, response) {
-                    location.reload();
+                    if (response.success) {
+                        location.reload();
+                    } else {
+                        alert('아이콘 업데이트 실패: ' + response.message);
+                    }
                 });
             }
         };
     </script>
+    
     
     <script>
         let select = document.querySelector('.select');
@@ -79,6 +257,127 @@
             }) 
             document.getElementById('bye').classList.remove('hidden');
         });
+        select.querySelectorAll('button')[3].addEventListener('click',()=>{
+            document.querySelectorAll('.option').forEach(e=>{
+                e.classList.add('hidden');
+            }) 
+            document.getElementById('point').classList.remove('hidden');
+        });
+    </script>
+    <script>
+        document.querySelectorAll('.btn.btn-info').forEach(button => {
+            button.addEventListener('click', function () {
+                const iconElement = this.previousElementSibling.previousElementSibling; //아이콘을 가리키는 거임
+                const iconName = iconElement.classList[1]; // 아이콘 이름
+                const iconCost = this.previousElementSibling.textContent.replace('pt', '').trim(); //포인트 비용
+    
+                if (confirm(`${iconName} 아이콘을 ${iconCost} 포인트에 구매하시겠습니까?`)) {   //확인 창으로 전송
+                    fetch('/purchase-icon', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ iconName: iconName, iconCost: parseInt(iconCost) })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert(`${iconName} 아이콘을 성공적으로 구매하였습니다.`);
+                            location.reload();
+                        } else {
+                            alert(data.message);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('구매 중 오류가 발생했습니다. 다시 시도해 주세요.');
+                    });
+                }
+            });
+        });
+        function confirmIconChange(icon) {
+            if (confirm("이 아이콘으로 변경하시겠습니까?")) {
+              // 선택된 아이콘을 서버로 전송하여 업데이트
+              fetch('/update-icon', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ icon: icon })
+              })
+              .then(response => response.json())
+              .then(data => {
+                if (data.success) {
+                  alert('아이콘이 성공적으로 변경되었습니다.');
+                  location.reload(); // 페이지 새로고침
+                } else {
+                  alert('아이콘 변경에 실패했습니다.');
+                }
+              })
+              .catch(error => {
+                console.error('Error:', error);
+              });
+            }
+          }
+    </script>
+        
+        
+    <script>
+        document.querySelector('.change-nickname-btn').addEventListener('click',function updateNickname() {
+            const nickname = document.getElementById('nickname-input').value;
+            fetch('/update-nickname', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ nickname: nickname }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('닉네임이 성공적으로 변경되었습니다!');
+                    location.reload();
+                } else {
+                    alert('닉네임 변경 실패(사유: '+data.message+')');
+                    location.reload();
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('서버 오류가 발생하였습니다.');
+            });
+        })
+        function requestDeletion() {
+            const password = document.getElementById('bye-password').value;
+            const checkboxes = document.querySelectorAll('#checkbox-container .form-check-input');
+            const allChecked = Array.from(checkboxes).every(checkbox => checkbox.checked);
+    
+            if (!allChecked) {
+                alert('모든 확인란을 체크해야 탈퇴가 가능합니다.');
+                return;
+            }
+    
+            fetch('/byebyebye', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ password: password }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('성공적으로 탈퇴되었습니다.');
+                    window.location.href = '/'; // 탈퇴 후 메인 페이지로 리다이렉트
+                } else {
+                    alert(data.message || '탈퇴에 실패하였습니다.');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('서버 오류가 발생하였습니다.');
+            });
+        }
     </script>
     <script src="/bootstrap/bootstrap.bundle.min.js"></script>
 </body>
