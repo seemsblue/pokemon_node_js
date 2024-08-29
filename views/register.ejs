@@ -64,7 +64,22 @@
                         <input id="check" name="check" type="password" class="form-control" placeholder="비밀번호를 확인하세요" autocomplete="new-password">
                     </div>
                 </div>
-    
+
+                <div class="op-bot">
+                    <p>로봇이 아닙니다 I'm not robot</p>
+                    <input class="check-bot bot bot-check" type="checkbox">
+                </div>
+                
+                <div class="hidden-bot">
+                    <p>로봇이 아닙니다 I'm not robot</p>
+                    <input class="check-bot2 bot bot-check" type="checkbox">
+                </div>
+
+                <div class="hidden-bot">
+                    <p>'로봇이 아닙니다' 를 입력하세요 I'm not robot</p>
+                    <input class="check-bot3 bot bot-check" type="text">
+                </div>
+
                 <div class="d-grid">
                     <button type="submit" class="btn btn-primary">만들기!</button>
                 </div>
@@ -73,12 +88,39 @@
     </div>
 
     <script>
+        //봇 의심인 경우 3초간 스턴
+        function catchBot() {
+            let startTime = Date.now(); // 현재 시간을 기록
+        
+            // 3초 동안 무한 루프 실행
+            while (true) {
+                if (Date.now() - startTime > 3000) {
+                    break;
+                }
+                alert("봇인가보네?");
+            }
+        }
+        
+
         document.querySelector('.form-box').addEventListener('submit', function(event) {
             //그치만 여기서 백날 검사해봐야 어차피 서버에서 검사할거임
+
+            
             let password = document.getElementById('password').value;
             let check = document.getElementById('check').value;
             let email = document.getElementById('email').value;
             let nickname = document.getElementById('nickname').value;
+            const checkBot1 = document.querySelector('.check-bot').value;
+            const checkBot2 = document.querySelector('.check-bot2').value;
+            const checkBot3 = document.querySelector('.check-bot3').value;
+
+            //ai나 매크로 의심
+            if(checkBot1=='on' || checkBot2=='on' || checkBot3 =='로봇이 아닙니다' ){
+                alert('보시네 이거');
+                catchBot();
+                return;
+            }
+
 
             console.log(email);
             if (password !== check) {

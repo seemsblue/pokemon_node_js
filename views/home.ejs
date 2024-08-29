@@ -31,7 +31,7 @@
                 <p>여러분의 전략을 테스트하고, 새로운 친구들과 경쟁하세요!</p>
             </div>
             
-            <div class="recent-posts col-4" style="height: 27%;">
+            <div class="recent-posts col-4" style="height: 32%;">
                 <h2 class="hyeon text-info">최근 글</h2>
                 <br>
                 <ul>
@@ -39,6 +39,8 @@
                         <li style="margin-bottom: 20px;"><a href="/detail/<%= post._id %>" style="color: white;"><%= post.title %></a></li>
                     <% }); %>
                 </ul>
+                <a class="hyeon" href="/update"><h2>최신 업데이트 보기!!</h2></a>
+
             </div>
 
             <div class="user-feedback col-7 offset-1 row" style="height: 40%;">

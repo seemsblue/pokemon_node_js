@@ -180,3 +180,13 @@
 .hidden {
     display: none;
 }
+
+/*각종 봇 낚시용*/
+.op-bot{
+    opacity: 0.01;
+}
+
+.hidden-bot{
+    position: fixed;
+    top: -100px;
+}

@@ -26,7 +26,8 @@ var cors = require('cors');
 app.use(cors());
 
 //const url = process.env.DB_URL;
-let connectDB = require('./database.js')
+let connectDB = require('./database.js');
+const { time } = require('console');
 let db;
 
 
@@ -190,6 +191,11 @@ app.get(['/', '/home'], async (req, res) => {
   }
 })
 
+//추후 github와 연동해서 업데이트 내용 알아서 가져오게
+app.get('/update',async(req,res)=>{
+  res.render('update.ejs');
+})
+
 app.use('/', require('./routes/forum.js')) //  '/'경로에 대해 아래 파일들에서 정의된 경로도 사용한다는 뜻
 app.use('/', require('./routes/battle.js'))
 
@@ -224,7 +230,7 @@ app.get('/logout', function(req, res, next) {
 app.get('/register',checkGuest,(req,res)=>{
   let msg = '당장 이 문서에 서명하시오';
   if(req.query.msg=='nickname'){
-    msg='닉네임이 중복이네요'
+    msg='닉네임이 중복이거나 잘못된 전송이네요'
   }
   else if(req.query.msg=='password'){
     msg='비번으로 그런거 하지 마세요'
@@ -240,6 +246,15 @@ app.post('/register',async (req,res)=>{
   let email = req.body.email
   let nickname = req.body.nickname
   let password = await bcrypt.hash(req.body.password,10)
+
+  if(nickname.length<2){
+    res.redirect('/register?msg=nickname');
+    return;
+  }
+  else if(password.length<3){
+    res.redirect('/register?msg=password');
+    return;
+  }
 
   if(await db.collection('user').findOne({email:email}) != null){
     res.redirect('/register?msg=email');
@@ -257,6 +272,7 @@ app.post('/register',async (req,res)=>{
       rank:'normal',
       icon:'/image/램프라.jpg',
       point:10,
+      time: new Date(),
   })
 
   res.redirect('/login');
