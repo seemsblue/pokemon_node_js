@@ -5,8 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document</title>
     <link rel="apple-touch-icon" href="/docs/5.1/assets/img/favicons/apple-touch-icon.png" sizes="180x180">
-    <link rel="icon" href="/docs/5.1/assets/img/favicons/favicon-32x32.png" sizes="32x32" type="image/png">
-    <link rel="icon" href="/docs/5.1/assets/img/favicons/favicon-16x16.png" sizes="16x16" type="image/png">
     <link rel="mask-icon" href="/docs/5.1/assets/img/favicons/safari-pinned-tab.svg" color="#7952b3">
     <link rel="icon" href="/docs/5.1/assets/img/favicons/favicon.ico">
 
@@ -17,5 +15,26 @@
     </head>
 <body>
     <%- include('component/nav.ejs')%>
+
+    <h2>* github에 연결된 txt 파일에서 직접 불러오는 페이지 입니다</h2>
+    <div class="update-scroll">
+        <div id="github-content"></div>
+    </div>
+
+    <script>
+        // GitHub의 파일 URL
+        const fileUrl = 'https://raw.githubusercontent.com/seemsblue/pokemon_node_js/master/%EC%97%85%EB%8D%B0%EC%9D%B4%ED%8A%B8%20%EB%82%B4%EC%9A%A9.txt';
+
+        // Fetch API를 사용해 텍스트 파일을 불러와 div에 삽입
+        fetch(fileUrl)
+            .then(response => response.text())
+            .then(data => {
+                document.getElementById('github-content').innerText = data;
+            })
+            .catch(error => {
+                console.error(error);
+                document.getElementById('github-content').innerText = 'Failed to load content.';
+            });
+    </script>
     <%- include('component/footer.ejs')%>
 </body>
