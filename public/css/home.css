@@ -98,3 +98,41 @@ p {
 .user-feedback p{
     margin-bottom: 16px;
 }
+
+@media (max-width: 600px) {
+    .stickybox .site-intro h2,
+    .stickybox .recent-posts h2,
+    .stickybox .user-feedback h2,
+    .stickybox .promo-banner h2,
+    .stickybox .sbox h1,
+    .stickybox .sbox h3,
+    .stickybox .sbox p {
+        font-size: 12px; /* 폰트 사이즈 작게 */
+        margin: 5px 0; /* 태그 간 간격 줄이기 */
+    }
+
+    .stickybox .site-intro p,
+    .stickybox .recent-posts ul li a,
+    .stickybox .user-feedback p,
+    .stickybox .promo-banner p {
+        font-size: 15px; /* 문단 텍스트 크기 줄이기 */
+        margin: 3px 0; /* 문단 간 간격 줄이기 */
+    }
+
+    .stickybox .sbox h1 {
+        font-size: 17px; /* 주요 제목 크기는 조금 더 큼 */
+    }
+
+    .stickybox .sbox h3 {
+        font-size: 18px; /* 부제목 크기 */
+    }
+
+    .stickybox .sbox p {
+        font-size: 20px; /* 일반 텍스트 크기 */
+    }
+
+    /* 이미지와 기타 요소 간 간격도 조정 가능 */
+    .stickybox .sbox .simage img {
+        max-width: 100%; /* 이미지가 화면에 맞게 크기 조정 */
+    }
+}
