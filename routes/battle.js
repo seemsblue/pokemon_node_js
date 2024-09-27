@@ -14,15 +14,24 @@ const router = require('express').Router();
 const path = require('path');
 
 const { MongoClient, ObjectId } = require('mongodb');
-const { checkAuth } = require('../server.js'); // 미들웨어 파일 경로에 맞게 수정
+const { checkAuth } = require('../server.js'); // 미들웨어 불러오기
 
 let opUserId = '';
 
 const { io } = require('../server.js');
 
-let connectDB = require('../database.js');
 const { error } = require('console');
+
+let connectDB = require('../database.js');
 let db;
+
+connectDB.then(client => {
+    //console.log('배틀 라우터 DB 연결 성공');  //확인완료
+    db = client.db('pokemon');
+}).catch(err => {
+    console.log(err);
+});
+
 
 /**
  * 1부터 1010 숫자 넣으면 해당 Id의 포켓몬 json 반환
@@ -275,94 +284,151 @@ function typeMatchByPokemon(atkType, defPokemon) {
     return result;
 }
 
-connectDB.then(client => {
-    //console.log('배틀 라우터 DB 연결 성공');  //확인완료
-    db = client.db('pokemon');
-}).catch(err => {
-    console.log(err);
+
+// 매칭 페이지 구현
+/**
+ * @swagger
+ * /match:
+ *   get:
+ *     summary: Retrieve available battle sessions for matching
+ *     tags: [Battle,Page]
+ *     responses:
+ *       200:
+ *         description: Render match page with available battle sessions
+ */
+router.get('/match', checkAuth, async (req, res) => {
+    let sessions = await db.collection('battle_sessions').find({status: 'waiting'}).toArray();  // 매칭 안된 방만 찾아줌
+    res.render('battle/match.ejs', { sessions: sessions });
 });
 
-router.get('/match',checkAuth,async(req,res)=>{
-    let sessions = await db.collection('battle_sessions').find({status: 'waiting'}).toArray();  //매칭 안된 방만 찾아줌
-    res.render('battle/match.ejs',{sessions:sessions});
-})
-router.get('/rooms-json',async(req,res)=>{  //room 리스트를 json으로 반환
-    try{
+// 배틀 방 리스트를 JSON으로 반환
+/**
+ * @swagger
+ * /rooms-json:
+ *   get:
+ *     summary: Get a list of all battle sessions in JSON format
+ *     tags: [Battle,Page]
+ *     responses:
+ *       200:
+ *         description: JSON containing all battle sessions
+ *       500:
+ *         description: Server error
+ */
+router.get('/rooms-json', async (req, res) => {  // room 리스트를 json으로 반환
+    try {
         let sessions = await db.collection('battle_sessions').find().toArray();
         console.log(sessions);
         res.json(sessions);
+    } catch (e) {
+        console.error('fetching 에러', e);
+        res.status(500).json({ error: '서버에러' });
     }
-    catch(e){
-        console.error('fetching 에러',e);
-        res.status(500).json({error:'서버에러'});
-    }
-})
+});
 
-//매칭 페이지에서 create-room 요청을 보내면 db에 배틀 세션 데이터 발행
-router.post('/create-room',checkAuth,async(req,res)=>{
+// 매칭 페이지에서 create-room 요청을 보내면 DB에 배틀 세션 데이터 발행
+/**
+ * @swagger
+ * /create-room:
+ *   post:
+ *     summary: Create a new battle session
+ *     tags: [Battle]
+ *     requestBody:
+ *       content:
+ *         application/x-www-form-urlencoded:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               title:
+ *                 type: string
+ *                 description: Title of the battle session
+ *     responses:
+ *       302:
+ *         description: Redirect to the newly created battle session
+ *       400:
+ *         description: Bad request, title is empty
+ */
+router.post('/create-room', checkAuth, async (req, res) => {
     let code;
     let title = req.body.title;
     
-    if(title==''){
+    if (title == '') {
         res.redirect('/match');
         return;
     }
-    //4자리 랜덤 숫자를 생성하고, 현재 db에 겹치는 숫자 있는지 검색 > 유니크 할때까지 반복
-    let existingCode=false;
+
+    // 4자리 랜덤 숫자를 생성하고, 현재 DB에 겹치는 숫자 있는지 검색 > 유니크 할때까지 반복
+    let existingCode = false;
     do {
         code = Math.floor(1000 + Math.random() * 9000); // 1000에서 9999 사이의 4자리 숫자
         existingCode = await db.collection('battle_sessions').findOne({ code: code });
     } while (existingCode);
 
     await db.collection('battle_sessions').insertOne({
-        user1:req.user._id,
-        user2:null,
-        nick:req.user.nickname,
-        //데이터 수명을 정할 때 mongo에서 2가지 방법을 쓸 수 있는데 일단 여기서는 date_time으로부터 10분이 지나면 삭제되게 index 짜둠
-        date_time : new Date(), //세션 유효기간 10분으로 초기화
-        code:code,
-        title : title,
-        status : 'waiting'
+        user1: req.user._id,
+        user2: null,
+        nick: req.user.nickname,
+        // 데이터 수명을 정할 때 mongo에서 2가지 방법을 쓸 수 있는데 일단 여기서는 date_time으로부터 10분이 지나면 삭제되게 index 짜둠
+        date_time: new Date(), // 세션 유효기간 10분으로 초기화
+        code: code,
+        title: title,
+        status: 'waiting'
     });
-    res.redirect('/battle/'+code);
-})
+    res.redirect('/battle/' + code);
+});
 
-router.get('/battle/:code',checkAuth,async(req,res)=>{
-    let code=Number(req.params.code);
-    let session = await db.collection('battle_sessions').findOne({code:code});
-    if(!session){   //세션이 존재하지 않으면 매칭 페이지로 리다이렉트
+// 배틀 세션에 참여
+/**
+ * @swagger
+ * /battle/{code}:
+ *   get:
+ *     summary: Join a battle session by code
+ *     tags: [Battle]
+ *     parameters:
+ *       - in: path
+ *         name: code
+ *         schema:
+ *           type: integer
+ *         required: true
+ *         description: Battle session code
+ *     responses:
+ *       200:
+ *         description: Render battle page with session details
+ *       302:
+ *         description: Redirect to the match page if session doesn't exist
+ */
+router.get('/battle/:code', checkAuth, async (req, res) => {
+    let code = Number(req.params.code);
+    let session = await db.collection('battle_sessions').findOne({ code: code });
+    
+    if (!session) {  // 세션이 존재하지 않으면 매칭 페이지로 리다이렉트
         res.redirect('/match');
         return;
     }
 
-    //주어진 id 자료형 확인하고 문자열 형태로 바꾸기(이렇게까지 할 필요는 없는데 연습삼아)
+    // 주어진 id 자료형 확인하고 문자열 형태로 바꾸기(이렇게까지 할 필요는 없는데 연습삼아)
     const sessionUser1Id = session.user1 instanceof ObjectId ? session.user1.toString() : session.user1;
     const reqUserId = req.user._id instanceof ObjectId ? req.user._id.toString() : req.user._id;
+    
     let side;
-    if (sessionUser1Id === reqUserId) { //방 주인이라면 home으로 참가
-        side = 'home'
-    } else if(session.user2==null||session.user2==req.user._id.toString()){ //두번째 유저 자리가 비어있다면 away로 참가
-        side = 'away'
+    if (sessionUser1Id === reqUserId) {  // 방 주인이라면 home으로 참가
+        side = 'home';
+    } else if (session.user2 == null || session.user2 == req.user._id.toString()) {  // 두번째 유저 자리가 비어있다면 away로 참가
+        side = 'away';
         await db.collection('battle_sessions').updateOne(
-            {_id : new ObjectId(session._id)},
-            {
-                $set:{
-                    user2:new ObjectId(reqUserId),
-                    status:'matched', //매칭됨으로 상태 변경(이 단계부터는 방 검색 안됨)
-            }});
-    }
-    else{   //관전자라면...?
-        side = 'spectator'
+            { _id: new ObjectId(session._id) },
+            { $set: { user2: new ObjectId(reqUserId), status: 'matched' } }  // 매칭됨으로 상태 변경
+        );
+    } else {  // 관전자라면...?
+        side = 'spectator';
     }
 
     let currentUser = await db.collection('user').findOne({ _id: new ObjectId(sessionUser1Id) });
     delete currentUser.password;
     delete currentUser.email;
-    //console.log(currentUser);
 
-    res.render('battle/battle.ejs',{session:session,side:side,home:currentUser});
-    
+    res.render('battle/battle.ejs', { session: session, side: side, home: currentUser });
 });
+
 
 /**
 * indices 안에 없는 인덱스의 list 요소는 삭제한 리스트 리턴(선택한 포켓몬만 남김)
@@ -844,10 +910,7 @@ io.on('connection', async(socket) => {   //접속 할때마다 유저에게 고�
                     date_time : new Date(),
                 }
             }
-            
         }
-        
-        
 
         //포인트 업데이트 함수
         async function updatePoint(i){
@@ -866,7 +929,6 @@ io.on('connection', async(socket) => {   //접속 할때마다 유저에게 고�
              {$set:{recentRecord:recordData}}
             )
         }
-
         
         if(status=='wait'&&side=='away'){ //away가 게임 시작하기 전에 떠남
             io.to(roomId).emit('leave');    

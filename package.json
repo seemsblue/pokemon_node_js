@@ -16,7 +16,9 @@
     "passport": "^0.7.0",
     "passport-local": "^1.0.0",
     "quill": "^2.0.2",
-    "socket.io": "^4.7.5"
+    "socket.io": "^4.7.5",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1"
   },
   "scripts": {
     "start": "node server.js"

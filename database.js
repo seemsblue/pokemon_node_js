@@ -1,7 +1,10 @@
+//Mongo DB
 const { MongoClient } = require('mongodb');
 const url = process.env.DB_URL;
 let connectDB = new MongoClient(url).connect();
 
+
+//모듈화해서 export
 module.exports = connectDB  //db 연결 여부까지 확인해서 전달하는건 오래걸리는 작업이라 그건 각자 해야함
 /**
  * 이렇게 해두면
